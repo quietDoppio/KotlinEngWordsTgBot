@@ -16,7 +16,13 @@ fun main() {
 
     wordsFile.forEachLine {
         val line = it.split("|")
-        dictionary.add(Word(origWord = line[0], translatedWord = line[1]))
+        dictionary.add(
+            Word(
+                origWord = line[0],
+                translatedWord = line[1],
+                correctAnswerCount = line.getOrNull(2)?.toIntOrNull() ?: 0
+            )
+        )
     }
 
     dictionary.forEach { println(it) }
