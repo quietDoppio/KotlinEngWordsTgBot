@@ -9,8 +9,27 @@ data class Word(
 )
 
 fun main() {
-    val dictionary = mutableListOf<Word>()
+    val dictionary = loadDictionary()
+    while (true) {
+        println(
+            """Меню:
+            |1 - Учить слова
+            |2 - Статистика
+            |0 - Выход""".trimMargin()
+        )
 
+        val userInput = readln()
+        when (userInput) {
+            "1" -> println("Режим изучения слов")
+            "2" -> println("Режим просмотра статистика")
+            "0" -> println("Выход")
+            else -> println("Введите число 1, 2 или 0")
+        }
+    }
+}
+
+fun loadDictionary(): List<Word> {
+    val dictionary = mutableListOf<Word>()
     val wordsFile = File("words")
     wordsFile.createNewFile()
 
@@ -24,6 +43,5 @@ fun main() {
             )
         )
     }
-
-    dictionary.forEach { println(it) }
+    return dictionary
 }
