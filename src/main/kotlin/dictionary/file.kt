@@ -3,7 +3,7 @@ package dictionary
 import java.io.File
 
 data class Word(
-    val origWord: String,
+    val originalWord: String,
     val translatedWord: String,
     val correctAnswerCount: Int = 0,
 )
@@ -18,7 +18,7 @@ fun main() {
         val line = it.split("|")
         dictionary.add(
             Word(
-                origWord = line[0],
+                originalWord = line[0],
                 translatedWord = line[1],
                 correctAnswerCount = line.getOrNull(2)?.toIntOrNull() ?: 0
             )
