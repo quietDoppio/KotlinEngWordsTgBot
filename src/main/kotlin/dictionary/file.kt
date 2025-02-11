@@ -28,7 +28,7 @@ fun main() {
                 val learnedWords = dictionary.filter { it.correctAnswerCount >= 3 }.size
                 val learnedWordsPercent =
                     if (learnedWords != 0) (learnedWords.toDouble() / totalWords) * HUNDRED_PERCENT else 0
-                println("Выучено $learnedWords из $totalWords | ${learnedWordsPercent.toInt()}%\n")
+                println("Выучено $learnedWords из $totalWords слов | ${learnedWordsPercent.toInt()}%\n")
             }
 
             "0" -> println("Выход")
