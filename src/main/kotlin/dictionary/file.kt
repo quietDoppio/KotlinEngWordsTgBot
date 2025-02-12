@@ -2,6 +2,8 @@ package dictionary
 
 import java.io.File
 
+const val HUNDRED_PERCENT = 100
+
 data class Word(
     val originalWord: String,
     val translatedWord: String,
@@ -21,7 +23,14 @@ fun main() {
         val userInput = readln()
         when (userInput) {
             "1" -> println("Режим изучения слов")
-            "2" -> println("Режим просмотра статистика")
+            "2" -> {
+                val totalWords = dictionary.size
+                val learnedWords = dictionary.filter { it.correctAnswerCount >= 3 }.size
+                val learnedWordsPercent =
+                    if (learnedWords != 0) (learnedWords.toDouble() / totalWords) * HUNDRED_PERCENT else 0
+                println("Выучено $learnedWords из $totalWords слов | ${learnedWordsPercent.toInt()}%\n")
+            }
+
             "0" -> println("Выход")
             else -> println("Введите число 1, 2 или 0")
         }
