@@ -3,6 +3,8 @@ package dictionary
 import java.io.File
 
 const val HUNDRED_PERCENT = 100
+const val LEARN_WORD_LIMIT = 3
+const val QUESTION_WORDS_COUNT = 4
 
 data class Word(
     val originalWord: String,
@@ -12,6 +14,7 @@ data class Word(
 
 fun main() {
     val dictionary = loadDictionary()
+
     while (true) {
         println(
             """Меню:
@@ -22,15 +25,8 @@ fun main() {
 
         val userInput = readln()
         when (userInput) {
-            "1" -> println("Режим изучения слов")
-            "2" -> {
-                val totalWords = dictionary.size
-                val learnedWords = dictionary.filter { it.correctAnswerCount >= 3 }.size
-                val learnedWordsPercent =
-                    if (learnedWords != 0) (learnedWords.toDouble() / totalWords) * HUNDRED_PERCENT else 0
-                println("Выучено $learnedWords из $totalWords слов | ${learnedWordsPercent.toInt()}%\n")
-            }
-
+            "1" -> startLearnWords(dictionary)
+            "2" -> println(getStatistics(dictionary))
             "0" -> println("Выход")
             else -> println("Введите число 1, 2 или 0")
         }
@@ -53,4 +49,50 @@ fun loadDictionary(): List<Word> {
         )
     }
     return dictionary
+}
+
+fun getStatistics(dictionary: List<Word>): String {
+    val totalWords = dictionary.size
+    val learnedWordsCount = dictionary.filter { it.correctAnswerCount >= LEARN_WORD_LIMIT }.size
+    val learnedWordsPercent =
+        if (learnedWordsCount != 0) ((learnedWordsCount.toDouble() / totalWords) * HUNDRED_PERCENT).toInt() else 0
+    val statistics = "Выучено $learnedWordsCount из $totalWords слов | ${learnedWordsPercent}%\n"
+    return statistics
+}
+
+fun startLearnWords(dictionary: List<Word>) {
+    val notLearnedList = dictionary.filter { it.correctAnswerCount < LEARN_WORD_LIMIT }
+    while (true) {
+        if (notLearnedList.isEmpty()) {
+            println("Все слова в словаре выучены")
+            return
+        }
+
+        val questionWords = notLearnedList.shuffled().take(QUESTION_WORDS_COUNT)
+        if (questionWords.size < QUESTION_WORDS_COUNT) {
+            println(
+                "Недостаточно слов для изучения\n" +
+                        "В данный момент невыученных слов - ${notLearnedList.size} из необходимых $QUESTION_WORDS_COUNT\n"
+            )
+            return
+        }
+
+        val wordToGuess = questionWords.random().originalWord
+        println(
+            """$wordToGuess:
+            |1 - ${questionWords[0].translatedWord}
+            |2 - ${questionWords[1].translatedWord}
+            |3 - ${questionWords[2].translatedWord}
+            |4 - ${questionWords[3].translatedWord}
+            """.trimMargin()
+        )
+        val userInput = readln().toIntOrNull() ?: 0
+        if (userInput in 1..QUESTION_WORDS_COUNT) {
+            val isRightAnswer = questionWords[userInput - 1].originalWord == wordToGuess
+            if (isRightAnswer) println("Верно! $wordToGuess - ${questionWords[userInput - 1].translatedWord}")
+            else println("Не верно! $wordToGuess не ${questionWords[userInput - 1].translatedWord}")
+        } else {
+            println("Введите число 1, 2, 3 или 4")
+        }
+    }
 }
