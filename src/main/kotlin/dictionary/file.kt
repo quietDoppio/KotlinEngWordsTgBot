@@ -23,14 +23,7 @@ fun main() {
         val userInput = readln()
         when (userInput) {
             "1" -> println("Режим изучения слов")
-            "2" -> {
-                val totalWords = dictionary.size
-                val learnedWords = dictionary.filter { it.correctAnswerCount >= 3 }.size
-                val learnedWordsPercent =
-                    if (learnedWords != 0) (learnedWords.toDouble() / totalWords) * HUNDRED_PERCENT else 0
-                println("Выучено $learnedWords из $totalWords | ${learnedWordsPercent.toInt()}%\n")
-            }
-
+            "2" -> println(getStatistics(dictionary))
             "0" -> println("Выход")
             else -> println("Введите число 1, 2 или 0")
         }
@@ -53,4 +46,13 @@ fun loadDictionary(): List<Word> {
         )
     }
     return dictionary
+}
+
+fun getStatistics(dictionary: List<Word>): String {
+    val totalWords = dictionary.size
+    val learnedWordsCont = dictionary.filter { it.correctAnswerCount >= 3 }.size
+    val learnedWordsPercent =
+        if (learnedWordsCont != 0) (learnedWordsCont.toDouble() / totalWords) * HUNDRED_PERCENT else 0
+    val statistics = "Выучено $learnedWordsCont из $totalWords слов | ${learnedWordsPercent.toInt()}%\n"
+    return statistics
 }
