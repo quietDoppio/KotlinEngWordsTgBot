@@ -5,16 +5,20 @@ import java.io.File
 const val HUNDRED_PERCENT = 100
 const val LEARN_WORD_LIMIT = 3
 const val QUESTION_WORDS_COUNT = 4
+const val WORDS_FILE_NAME = "words"
 
 data class Word(
     val originalWord: String,
     val translatedWord: String,
     val correctAnswerCount: Int = 0,
-)
+) {
+    override fun toString(): String {
+        return "$originalWord|$translatedWord|$correctAnswerCount"
+    }
+}
 
 fun main() {
     val dictionary = loadDictionary()
-
     while (true) {
         println(
             """Меню:
@@ -27,7 +31,7 @@ fun main() {
         when (userInput) {
             "1" -> startLearnWords(dictionary)
             "2" -> println(getStatistics(dictionary))
-            "0" -> println("Выход")
+            "0" -> return
             else -> println("Введите число 1, 2 или 0")
         }
     }
@@ -35,8 +39,7 @@ fun main() {
 
 fun loadDictionary(): List<Word> {
     val dictionary = mutableListOf<Word>()
-    val wordsFile = File("words")
-    wordsFile.createNewFile()
+    val wordsFile = File(WORDS_FILE_NAME)
 
     wordsFile.forEachLine {
         val line = it.split("|")
@@ -61,8 +64,13 @@ fun getStatistics(dictionary: List<Word>): String {
 }
 
 fun startLearnWords(dictionary: List<Word>) {
-    val notLearnedList = dictionary.filter { it.correctAnswerCount < LEARN_WORD_LIMIT }
+    val notLearnedList = dictionary.filter {
+        it.correctAnswerCount < LEARN_WORD_LIMIT
+    }.toMutableList()
+
+    val inputRange = 0..QUESTION_WORDS_COUNT
     while (true) {
+
         if (notLearnedList.isEmpty()) {
             println("Все слова в словаре выучены")
             return
@@ -77,22 +85,65 @@ fun startLearnWords(dictionary: List<Word>) {
             return
         }
 
-        val wordToGuess = questionWords.random().originalWord
+        val wordToGuess = questionWords.random()
         println(
-            """$wordToGuess:
+            """${wordToGuess.originalWord}:
             |1 - ${questionWords[0].translatedWord}
             |2 - ${questionWords[1].translatedWord}
             |3 - ${questionWords[2].translatedWord}
             |4 - ${questionWords[3].translatedWord}
+            |----------
+            |0 - Меню
             """.trimMargin()
         )
-        val userInput = readln().toIntOrNull() ?: 0
-        if (userInput in 1..QUESTION_WORDS_COUNT) {
-            val isRightAnswer = questionWords[userInput - 1].originalWord == wordToGuess
-            if (isRightAnswer) println("Верно! $wordToGuess - ${questionWords[userInput - 1].translatedWord}")
-            else println("Не верно! $wordToGuess не ${questionWords[userInput - 1].translatedWord}")
+
+
+        val userInput = readln().toIntOrNull()
+        if (userInput != null && userInput in inputRange) {
+
+            when (userInput) {
+                0 -> return
+                else -> {
+                    val selectedWord = questionWords[userInput - 1]
+                    val isRightAnswer = selectedWord.originalWord == wordToGuess.originalWord
+                    if (isRightAnswer) {
+                        println("Верно! ${wordToGuess.originalWord} - ${selectedWord.translatedWord}")
+                        val correctAnswerCount = selectedWord.correctAnswerCount + 1
+                        val changedWord = selectedWord.copy(correctAnswerCount = correctAnswerCount)
+                        saveDirectory(changedWord)
+                        updateNotLearnedList(notLearnedList, changedWord)
+                    } else {
+                        println("Не верно! ${wordToGuess.originalWord} - ${wordToGuess.translatedWord}")
+                    }
+                }
+            }
+
         } else {
             println("Введите число 1, 2, 3 или 4")
         }
     }
 }
+
+fun saveDirectory(changedWord: Word) {
+    val wordsFile = File(WORDS_FILE_NAME)
+
+    val newString = changedWord.toString()
+    val oldString = wordsFile.readLines().first { it ->
+        it.dropLast(1) == changedWord.toString().dropLast(1)
+    }
+
+    val content = wordsFile.readText()
+    val updatedContent = content.replace(oldString, newString)
+
+    wordsFile.writeText(updatedContent)
+    println("Слово выучено на ${changedWord.correctAnswerCount} из 3!")
+}
+
+fun updateNotLearnedList(notLearnedList: MutableList<Word>, changedWord: Word) {
+    val index = notLearnedList.indexOfFirst { it.originalWord == changedWord.originalWord }
+
+    if (changedWord.correctAnswerCount != LEARN_WORD_LIMIT) notLearnedList[index] = changedWord
+    else notLearnedList.removeAt(index)
+}
+
+
