@@ -1,12 +1,14 @@
 package dictionary
 
+const val DEFAULT_QUESTION_WORDS_COUNT = 4
+
 fun main() {
     val trainer = LearnWordsTrainer()
     while (true) {
-        printMenu()
+        println("Меню:\n1 - Учить слова\n2 - Статистика\n0 - Выход")
         val userInput = readln()
         when (userInput) {
-            "1" -> startLearning(trainer)
+            "1" -> startLearning(trainer, DEFAULT_QUESTION_WORDS_COUNT)
             "2" -> {
                 val statistic = trainer.getStatistics()
                 println("Выучено ${statistic.learnedWordsCount} из ${statistic.totalWordsCount} слов | ${statistic.learnedWordsPercent}%")
@@ -15,44 +17,48 @@ fun main() {
             else -> println("Введите число 1, 2 или 0")
         }
     }
-
 }
 
-fun printMenu() = println("Меню:\n1 - Учить слова\n2 - Статистика\n0 - Выход")
-fun startLearning(trainer: LearnWordsTrainer) {
-    val inputRange = 0..QUESTION_WORDS_COUNT
+fun startLearning(trainer: LearnWordsTrainer, questionWordsCount: Int) {
+    var inputRange = 0..questionWordsCount
+
     while (true) {
-        val question = trainer.getNextQuestion()!!
+        val question = trainer.getNextQuestion(questionWordsCount)
+        if (question == null) {
+            println("Слова для изучения кончились")
+            return
+        } else if(question.variants.size < questionWordsCount){
+            inputRange = 0..question.variants.size
+        }
         println(getQuestionString(question))
 
         val userInput = readln().toIntOrNull()
         if (userInput != null && userInput in inputRange) {
-
             when (userInput) {
                 0 -> return
                 else -> {
-                    if (trainer.checkAnswer(userInput.minus(1))) {
-                        println("Верно! ${question.correctAnswer.originalWord} - ${question.correctAnswer.translatedWord}")
-                    } else {
-                        println("Не верно! ${question.correctAnswer.originalWord} - ${question.variants[userInput.minus(1)].translatedWord}")
-                    }
+                    val resultText = "${question.correctAnswer.originalWord} - ${question.correctAnswer.translatedWord}"
+                    if (trainer.checkAnswer(userInput - 1)) println("Верно! $resultText")
+                    else  println("Не верно! $resultText")
                 }
             }
-
         } else {
-            println("Введите число 1, 2, 3 или 4")
+            println("Вводите числа равные вариантам ответа")
         }
     }
 }
 
-fun getQuestionString(question: Question): String {
-    var questionString = "${question.correctAnswer.originalWord}:\n"
-    questionString = questionString + question.variants
-        .mapIndexed { index: Int, variant: Word -> "${index + 1} - ${variant.translatedWord}" }
-        .joinToString(separator = "\n")
+fun getQuestionString(question: Question): String =
+    buildString{
+        append("${question.correctAnswer.originalWord}:\n")
+        append(
+            question.variants
+                .mapIndexed { index: Int, variant: Word -> "${index + 1} - ${variant.translatedWord}" }
+                .joinToString(separator = "\n")
+        )
+        append("\n------------\n0 - Меню")
+    }
 
-    return questionString
-}
 
 
 

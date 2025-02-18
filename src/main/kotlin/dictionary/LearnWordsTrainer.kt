@@ -4,9 +4,7 @@ import java.io.File
 
 const val HUNDRED_PERCENT = 100
 const val LEARN_WORD_LIMIT = 3
-const val QUESTION_WORDS_COUNT = 4
 const val WORDS_FILE_NAME = "words"
-
 
 data class Word(
     val originalWord: String,
@@ -19,8 +17,8 @@ data class Word(
 }
 
 data class Question(
-    val correctAnswer: Word,
     val variants: List<Word>,
+    val correctAnswer: Word,
 )
 
 data class Statistic(
@@ -30,20 +28,8 @@ data class Statistic(
 )
 
 class LearnWordsTrainer() {
-    var question: Question? = null
-     val dictionary = loadDictionary()
-
-    fun saveDirectory(changedWord: Word) {
-        val wordsFile = File(WORDS_FILE_NAME)
-        val newString = changedWord.toString()
-        val oldString = wordsFile.readLines().first { fileString ->
-            fileString.dropLast(1) == newString.dropLast(1)
-        }
-
-        val content = wordsFile.readText()
-        val updatedContent = content.replace(oldString, newString)
-        wordsFile.writeText(updatedContent)
-    }
+    private var question: Question? = null
+    private val dictionary = loadDictionary()
 
     private fun loadDictionary(): MutableList<Word> {
         val dictionary = mutableListOf<Word>()
@@ -62,26 +48,45 @@ class LearnWordsTrainer() {
         return dictionary
     }
 
-    fun getNextQuestion(): Question? {
-        val notLearnedList = dictionary.filter { it.correctAnswerCount < LEARN_WORD_LIMIT }
-        if (notLearnedList.isEmpty()) return null
-        val variants = notLearnedList.shuffled().take(QUESTION_WORDS_COUNT)
-        val correctAnswer = variants.random()
-        question = Question(
-            correctAnswer = correctAnswer,
-            variants = variants,
-        )
-        return question
-    }
-    fun checkAnswer(userAnswerInput: Int): Boolean{
-        val selectedWord = question?.variants[userAnswerInput]
-        val isRightAnswer = selectedWord?.originalWord == question?.correctAnswer?.originalWord
-        if(isRightAnswer){
-            val index = dictionary.indexOf(selectedWord)
-            dictionary[index].correctAnswerCount = dictionary[index].correctAnswerCount + 1
-            saveDirectory(dictionary[index])
+    private fun saveDirectory(changedWord: Word) {
+        val wordsFile = File(WORDS_FILE_NAME)
+        val newString = changedWord.toString()
+        val oldString = wordsFile.readLines().first { fileString ->
+            fileString.dropLast(1) == newString.dropLast(1)
         }
-        return isRightAnswer
+
+        val content = wordsFile.readText()
+        val updatedContent = content.replace(oldString, newString)
+        wordsFile.writeText(updatedContent)
+    }
+
+
+    fun getNextQuestion(questionWordsCount: Int): Question? {
+        val notLearnedList = dictionary.filter { it.correctAnswerCount < LEARN_WORD_LIMIT }
+        if (notLearnedList.isEmpty()) {
+            return null
+        } else {
+            val variants = notLearnedList.shuffled().take(questionWordsCount)
+            val correctAnswer = variants.random()
+            question = Question(
+                variants = variants,
+                correctAnswer = correctAnswer,
+            )
+            return question
+        }
+    }
+
+    fun checkAnswer(userAnswerInput: Int): Boolean {
+        question!!.let{
+            val selectedWord = it.variants[userAnswerInput]
+            val isRightAnswer = selectedWord.originalWord == it.correctAnswer.originalWord
+            if (isRightAnswer) {
+                val index = dictionary.indexOf(selectedWord)
+                dictionary[index].correctAnswerCount = dictionary[index].correctAnswerCount + 1
+                saveDirectory(dictionary[index])
+            }
+            return isRightAnswer
+        }
     }
 
     fun getStatistics(): Statistic {
