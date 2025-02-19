@@ -62,22 +62,22 @@ class LearnWordsTrainer() {
 
 
     fun getNextQuestion(questionWordsCount: Int): Question? {
-        val notLearnedList = dictionary.filter { it.correctAnswerCount < LEARN_WORD_LIMIT }
+        val notLearnedList = dictionary
+            .filter { it.correctAnswerCount < LEARN_WORD_LIMIT }
+            .shuffled()
+
         if (notLearnedList.isEmpty()) {
             return null
         } else {
-            val variants = notLearnedList.take(questionWordsCount).toMutableSet()
-            val correctAnswer =
-                if(question != null && variants.size != 1) variants.filter { it != question!!.correctAnswer }.random()
-                else variants.random()
+            val correctAnswer = notLearnedList.firstOrNull { it != question?.correctAnswer } ?: notLearnedList.random()
+            val variants = buildList {
+                val partOfVariants = (dictionary - correctAnswer).shuffled().take(questionWordsCount - 1)
+                add(correctAnswer)
+                addAll(partOfVariants)
+            }.shuffled()
 
-            if(variants.size < questionWordsCount){
-                val count = questionWordsCount - variants.size
-                val additionalWords = (dictionary - variants).shuffled().take(count)
-                variants.addAll(additionalWords)
-            }
             question = Question(
-                variants = variants.shuffled(),
+                variants = variants,
                 correctAnswer = correctAnswer,
             )
             return question
