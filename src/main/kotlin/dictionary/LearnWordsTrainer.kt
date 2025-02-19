@@ -85,7 +85,7 @@ class LearnWordsTrainer() {
     }
 
     fun checkAnswer(userAnswerInput: Int): Boolean {
-        question!!.let{
+        question?.let {
             val selectedWord = it.variants[userAnswerInput]
             val isRightAnswer = selectedWord.originalWord == it.correctAnswer.originalWord
             if (isRightAnswer) {
@@ -94,7 +94,7 @@ class LearnWordsTrainer() {
                 saveDirectory(dictionary[index])
             }
             return isRightAnswer
-        }
+        } ?: return false
     }
 
     fun getStatistics(): Statistic {
