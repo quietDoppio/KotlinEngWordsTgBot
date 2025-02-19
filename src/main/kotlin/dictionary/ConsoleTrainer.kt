@@ -20,15 +20,13 @@ fun main() {
 }
 
 fun startLearning(trainer: LearnWordsTrainer, questionWordsCount: Int) {
-    var inputRange = 0..questionWordsCount
+    val inputRange = 0..questionWordsCount
 
     while (true) {
         val question = trainer.getNextQuestion(questionWordsCount)
         if (question == null) {
             println("Слова для изучения кончились")
             return
-        } else if(question.variants.size < questionWordsCount){
-            inputRange = 0..question.variants.size
         }
         println(getQuestionString(question))
 

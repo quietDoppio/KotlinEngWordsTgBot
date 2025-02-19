@@ -66,10 +66,18 @@ class LearnWordsTrainer() {
         if (notLearnedList.isEmpty()) {
             return null
         } else {
-            val variants = notLearnedList.shuffled().take(questionWordsCount)
-            val correctAnswer = variants.random()
+            val variants = notLearnedList.take(questionWordsCount).toMutableSet()
+            val correctAnswer =
+                if(question != null && variants.size != 1) variants.filter { it != question!!.correctAnswer }.random()
+                else variants.random()
+
+            if(variants.size < questionWordsCount){
+                val count = questionWordsCount - variants.size
+                val additionalWords = (dictionary - variants).shuffled().take(count)
+                variants.addAll(additionalWords)
+            }
             question = Question(
-                variants = variants,
+                variants = variants.shuffled(),
                 correctAnswer = correctAnswer,
             )
             return question
@@ -82,7 +90,7 @@ class LearnWordsTrainer() {
             val isRightAnswer = selectedWord.originalWord == it.correctAnswer.originalWord
             if (isRightAnswer) {
                 val index = dictionary.indexOf(selectedWord)
-                dictionary[index].correctAnswerCount = dictionary[index].correctAnswerCount + 1
+                dictionary[index].correctAnswerCount += 1
                 saveDirectory(dictionary[index])
             }
             return isRightAnswer
