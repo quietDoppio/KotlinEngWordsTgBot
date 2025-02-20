@@ -1,6 +1,5 @@
 package dictionary
 
-const val DEFAULT_QUESTION_WORDS_COUNT = 4
 
 fun main() {
     val trainer = LearnWordsTrainer()
@@ -8,7 +7,7 @@ fun main() {
         println("Меню:\n1 - Учить слова\n2 - Статистика\n0 - Выход")
         val userInput = readln()
         when (userInput) {
-            "1" -> startLearning(trainer, DEFAULT_QUESTION_WORDS_COUNT)
+            "1" -> startLearning(trainer)
             "2" -> {
                 val statistic = trainer.getStatistics()
                 println("Выучено ${statistic.learnedWordsCount} из ${statistic.totalWordsCount} слов | ${statistic.learnedWordsPercent}%")
@@ -19,11 +18,11 @@ fun main() {
     }
 }
 
-fun startLearning(trainer: LearnWordsTrainer, questionWordsCount: Int) {
-    val inputRange = 0..questionWordsCount
+fun startLearning(trainer: LearnWordsTrainer) {
+    val inputRange = 0..trainer.questionWordsCount
 
     while (true) {
-        val question = trainer.getNextQuestion(questionWordsCount)
+        val question = trainer.getNextQuestion()
         if (question == null) {
             println("Слова для изучения кончились")
             return

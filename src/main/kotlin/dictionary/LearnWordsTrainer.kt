@@ -3,7 +3,6 @@ package dictionary
 import java.io.File
 
 const val HUNDRED_PERCENT = 100
-const val LEARN_WORD_LIMIT = 3
 const val WORDS_FILE_NAME = "words"
 
 data class Word(
@@ -27,7 +26,7 @@ data class Statistic(
     val learnedWordsPercent: Int,
 )
 
-class LearnWordsTrainer() {
+class LearnWordsTrainer(private val learnedWordsLimit: Int = 3, val questionWordsCount: Int = 4) {
     private var question: Question? = null
     private val dictionary = loadDictionary()
 
@@ -61,9 +60,9 @@ class LearnWordsTrainer() {
     }
 
 
-    fun getNextQuestion(questionWordsCount: Int): Question? {
+    fun getNextQuestion(): Question? {
         val notLearnedList = dictionary
-            .filter { it.correctAnswerCount < LEARN_WORD_LIMIT }
+            .filter { it.correctAnswerCount < learnedWordsLimit }
             .shuffled()
 
         if (notLearnedList.isEmpty()) {
@@ -71,7 +70,7 @@ class LearnWordsTrainer() {
         } else {
             val correctAnswer = notLearnedList.firstOrNull { it != question?.correctAnswer } ?: notLearnedList.random()
             val variants = buildList {
-                val partOfVariants = (dictionary - correctAnswer).shuffled().take(questionWordsCount - 1)
+                val partOfVariants = (dictionary - correctAnswer).shuffled().take(questionWordsCount.minus(1))
                 add(correctAnswer)
                 addAll(partOfVariants)
             }.shuffled()
@@ -99,7 +98,7 @@ class LearnWordsTrainer() {
 
     fun getStatistics(): Statistic {
         val totalWordsCount = dictionary.size
-        val learnedWordsCount = dictionary.filter { it.correctAnswerCount >= LEARN_WORD_LIMIT }.size
+        val learnedWordsCount = dictionary.filter { it.correctAnswerCount >= learnedWordsLimit }.size
         val learnedWordsPercent =
             if (learnedWordsCount != 0) ((learnedWordsCount * HUNDRED_PERCENT) / totalWordsCount) else 0
 
