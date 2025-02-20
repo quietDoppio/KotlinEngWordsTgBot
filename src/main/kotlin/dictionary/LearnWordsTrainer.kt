@@ -63,17 +63,21 @@ class LearnWordsTrainer(private val learnedWordsLimit: Int = 3, val questionWord
     fun getNextQuestion(): Question? {
         val notLearnedList = dictionary
             .filter { it.correctAnswerCount < learnedWordsLimit }
-            .shuffled()
 
         if (notLearnedList.isEmpty()) {
             return null
         } else {
             val correctAnswer = notLearnedList.firstOrNull { it != question?.correctAnswer } ?: notLearnedList.random()
-            val variants = buildList {
-                val partOfVariants = (dictionary - correctAnswer).shuffled().take(questionWordsCount.minus(1))
-                add(correctAnswer)
-                addAll(partOfVariants)
-            }.shuffled()
+            val variants = if (notLearnedList.size < questionWordsCount) {
+                buildList {
+                    val learnedWords = (dictionary - notLearnedList.toSet())
+                        .shuffled()
+                        .take(questionWordsCount - notLearnedList.size)
+                    addAll(notLearnedList + learnedWords)
+                }.shuffled()
+            } else {
+                notLearnedList.shuffled().take(questionWordsCount)
+            }
 
             question = Question(
                 variants = variants,
@@ -84,7 +88,7 @@ class LearnWordsTrainer(private val learnedWordsLimit: Int = 3, val questionWord
     }
 
     fun checkAnswer(userAnswerInput: Int): Boolean {
-        question!!.let{
+        question?.let {
             val selectedWord = it.variants[userAnswerInput]
             val isRightAnswer = selectedWord.originalWord == it.correctAnswer.originalWord
             if (isRightAnswer) {
@@ -94,6 +98,7 @@ class LearnWordsTrainer(private val learnedWordsLimit: Int = 3, val questionWord
             }
             return isRightAnswer
         }
+        return false
     }
 
     fun getStatistics(): Statistic {
