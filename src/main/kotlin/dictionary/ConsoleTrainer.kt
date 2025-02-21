@@ -2,7 +2,13 @@ package dictionary
 
 
 fun main() {
-    val trainer = LearnWordsTrainer()
+    val trainer = try {
+        LearnWordsTrainer()
+    } catch (e: Exception) {
+        println("Невозможно загрузить словарь")
+        return
+    }
+
     while (true) {
         println("Меню:\n1 - Учить слова\n2 - Статистика\n0 - Выход")
         val userInput = readln()
@@ -36,7 +42,7 @@ fun startLearning(trainer: LearnWordsTrainer) {
                 else -> {
                     val resultText = "${question.correctAnswer.originalWord} - ${question.correctAnswer.translatedWord}"
                     if (trainer.checkAnswer(userInput - 1)) println("Верно! $resultText")
-                    else  println("Не верно! $resultText")
+                    else println("Не верно! $resultText")
                 }
             }
         } else {
@@ -46,7 +52,7 @@ fun startLearning(trainer: LearnWordsTrainer) {
 }
 
 fun getQuestionString(question: Question): String =
-    buildString{
+    buildString {
         append("${question.correctAnswer.originalWord}:\n")
         append(
             question.variants

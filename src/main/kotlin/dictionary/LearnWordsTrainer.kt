@@ -34,7 +34,6 @@ class LearnWordsTrainer(val learnedWordsLimit: Int = 3, val questionWordsCount: 
         val dictionary = mutableListOf<Word>()
         val wordsFile = File(WORDS_FILE_NAME)
         wordsFile.createNewFile()
-
         wordsFile.forEachLine {
             val line = it.split("|")
             dictionary.add(
@@ -64,6 +63,8 @@ class LearnWordsTrainer(val learnedWordsLimit: Int = 3, val questionWordsCount: 
     fun getNextQuestion(): Question? {
         val notLearnedList = dictionary
             .filter { it.correctAnswerCount < learnedWordsLimit }
+            .shuffled()
+            .take(questionWordsCount)
 
         if (notLearnedList.isEmpty()) {
             return null
@@ -71,7 +72,8 @@ class LearnWordsTrainer(val learnedWordsLimit: Int = 3, val questionWordsCount: 
             val correctAnswer = notLearnedList.firstOrNull { it != question?.correctAnswer } ?: notLearnedList.random()
             val variants = if (notLearnedList.size < questionWordsCount) {
                 buildList {
-                    val learnedWords = (dictionary - notLearnedList.toSet())
+                    val learnedWords = dictionary
+                        .filter { it.correctAnswerCount >= learnedWordsLimit }
                         .shuffled()
                         .take(questionWordsCount - notLearnedList.size)
                     addAll(notLearnedList + learnedWords)
