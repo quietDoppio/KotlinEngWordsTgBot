@@ -100,8 +100,7 @@ class LearnWordsTrainer(val learnedWordsLimit: Int = 3, val questionWordsCount: 
                 saveDirectory(dictionary[index])
             }
             return isRightAnswer
-        }
-        return false
+        } ?: return false
     }
 
     fun getStatistics(): Statistic {
