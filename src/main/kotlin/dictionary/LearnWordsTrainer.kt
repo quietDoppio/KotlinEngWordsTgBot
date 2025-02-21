@@ -26,13 +26,14 @@ data class Statistic(
     val learnedWordsPercent: Int,
 )
 
-class LearnWordsTrainer(private val learnedWordsLimit: Int = 3, val questionWordsCount: Int = 4) {
+class LearnWordsTrainer(val learnedWordsLimit: Int = 3, val questionWordsCount: Int = 4) {
     private var question: Question? = null
     private val dictionary = loadDictionary()
 
     private fun loadDictionary(): MutableList<Word> {
         val dictionary = mutableListOf<Word>()
         val wordsFile = File(WORDS_FILE_NAME)
+        wordsFile.createNewFile()
 
         wordsFile.forEachLine {
             val line = it.split("|")
