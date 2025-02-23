@@ -1,14 +1,19 @@
 package dictionary
 
-const val DEFAULT_QUESTION_WORDS_COUNT = 4
 
 fun main() {
-    val trainer = LearnWordsTrainer()
+    val trainer = try {
+        LearnWordsTrainer()
+    } catch (e: Exception) {
+        println("Невозможно загрузить словарь")
+        return
+    }
+
     while (true) {
         println("Меню:\n1 - Учить слова\n2 - Статистика\n0 - Выход")
         val userInput = readln()
         when (userInput) {
-            "1" -> startLearning(trainer, DEFAULT_QUESTION_WORDS_COUNT)
+            "1" -> startLearning(trainer)
             "2" -> {
                 val statistic = trainer.getStatistics()
                 println("Выучено ${statistic.learnedWordsCount} из ${statistic.totalWordsCount} слов | ${statistic.learnedWordsPercent}%")
@@ -19,11 +24,11 @@ fun main() {
     }
 }
 
-fun startLearning(trainer: LearnWordsTrainer, questionWordsCount: Int) {
-    val inputRange = 0..questionWordsCount
+fun startLearning(trainer: LearnWordsTrainer) {
+    val inputRange = 0..trainer.questionWordsCount
 
     while (true) {
-        val question = trainer.getNextQuestion(questionWordsCount)
+        val question = trainer.getNextQuestion()
         if (question == null) {
             println("Слова для изучения кончились")
             return
@@ -37,7 +42,7 @@ fun startLearning(trainer: LearnWordsTrainer, questionWordsCount: Int) {
                 else -> {
                     val resultText = "${question.correctAnswer.originalWord} - ${question.correctAnswer.translatedWord}"
                     if (trainer.checkAnswer(userInput - 1)) println("Верно! $resultText")
-                    else  println("Не верно! $resultText")
+                    else println("Не верно! $resultText")
                 }
             }
         } else {
@@ -47,7 +52,7 @@ fun startLearning(trainer: LearnWordsTrainer, questionWordsCount: Int) {
 }
 
 fun getQuestionString(question: Question): String =
-    buildString{
+    buildString {
         append("${question.correctAnswer.originalWord}:\n")
         append(
             question.variants
