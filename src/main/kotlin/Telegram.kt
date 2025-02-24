@@ -20,6 +20,6 @@ fun main(args: Array<String>) {
     val getMeResponse: HttpResponse<String> = client.send(getMeRequest, HttpResponse.BodyHandlers.ofString())
     val getUpdatesResponse: HttpResponse<String> = client.send(getUpdatesRequest, HttpResponse.BodyHandlers.ofString())
 
-    println(getMeResponse.body().toString())
-    println(getUpdatesResponse.body().toString())
+    println(getMeResponse.body())
+    println(getUpdatesResponse.body())
 }
