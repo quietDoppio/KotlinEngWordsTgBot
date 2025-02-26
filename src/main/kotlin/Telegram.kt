@@ -5,17 +5,17 @@ import java.net.http.HttpResponse
 
 fun main(args: Array<String>) {
 
-    val botToken = args[0]
-    var updateId = 0
+    val botToken: String = args[0]
+    val updatesRegex: Regex = "\"update_id\":(\\d+).*?\"text\":\"(.+?)\"".toRegex(RegexOption.DOT_MATCHES_ALL)
+    var updateId: Int = 0
     var message: String
+
 
     while (true){
         Thread.sleep(2000)
         val updates = getUpdates(botToken, updateId)
-
-        val updateRegex = "\"update_id\":(\\d+).*?\"text\":\"(.+?)\"".toRegex(RegexOption.DOT_MATCHES_ALL)
-        val matches = updateRegex.findAll(updates)
-        val lastMatch = matches.lastOrNull()?.also {
+        val matches = updatesRegex.findAll(updates)
+        matches.lastOrNull()?.also {
             updateId = it.groupValues[1].toInt() + 1
             message = it.groupValues[2]
             println(message)
