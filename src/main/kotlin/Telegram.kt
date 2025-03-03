@@ -6,7 +6,7 @@ fun main(args: Array<String>) {
     val telegramBotService = TelegramBotService(botToken)
 
     var updateId = 0
-    var chatId = 0
+    var chatId: Long = 0
     var userMessage: String
 
     var newUpdates: String
@@ -24,7 +24,7 @@ fun main(args: Array<String>) {
             userMessage = values.getOrNull(2) ?: "nothing"
             println(userMessage)
             if (userMessage == "/start") {
-                if (chatId == 0) {
+                if (chatId == 0L) {
                     val chatIdMatch = getLastUpdateMatchResult(
                         newUpdates, MESSAGE_REGEX_PARAM.toRegex()
                     )
@@ -40,7 +40,7 @@ fun main(args: Array<String>) {
 private fun getLastUpdateMatchResult(updates: String, updatesRegex: Regex): MatchResult? =
     updatesRegex.findAll(updates).lastOrNull()
 
-private fun getChatIdFromMatchResult(match: MatchResult?): Int{
-    val chatId = match?.groupValues?.get(1)?.toIntOrNull() ?: 0
+private fun getChatIdFromMatchResult(match: MatchResult?): Long{
+    val chatId = match?.groupValues?.get(1)?.toLongOrNull() ?: 0L
     return chatId
 }

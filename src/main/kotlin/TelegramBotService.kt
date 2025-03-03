@@ -16,7 +16,7 @@ class TelegramBotService(botToken: String) {
         return response.body()
     }
 
-    fun sendMessage(chatId: Int ,messageToSend: String): String {
+    fun sendMessage(chatId: Long ,messageToSend: String): String {
             val message = messageToSend.replace(" ", "+")
             val request: HttpRequest = makeRequest("$botUrl/sendMessage?chat_id=$chatId&text=$message")
             val response = client.send(request, HttpResponse.BodyHandlers.ofString())
