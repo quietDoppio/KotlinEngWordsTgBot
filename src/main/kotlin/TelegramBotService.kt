@@ -23,13 +23,6 @@ class TelegramBotService(botToken: String) {
             return response.body()
     }
 
-    fun getLastUpdateMatchResult(updates: String, updatesRegex: Regex): MatchResult? =
-        updatesRegex.findAll(updates).lastOrNull()
-
-    fun getChatIdFromMatchResult(match: MatchResult?): Int{
-        val chatId = match?.groupValues?.get(1)?.toIntOrNull() ?: 0
-        return chatId
-    }
     private fun makeRequest(botUrl: String): HttpRequest =
         HttpRequest.newBuilder().uri(URI.create(botUrl)).build()
 }

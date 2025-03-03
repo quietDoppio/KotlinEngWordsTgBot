@@ -15,7 +15,7 @@ fun main(args: Array<String>) {
     while (true) {
         Thread.sleep(2000)
         newUpdates = telegramBotService.getUpdates(updateId)
-        lastUpdateMatch = telegramBotService.getLastUpdateMatchResult(
+        lastUpdateMatch = getLastUpdateMatchResult(
             newUpdates, UPDATES_ID_TEXT_REGEX_PARAM.toRegex(RegexOption.DOT_MATCHES_ALL)
         )
 
@@ -25,14 +25,22 @@ fun main(args: Array<String>) {
             println(userMessage)
             if (userMessage == "/start") {
                 if (chatId == 0) {
-                    val chatIdMatch = telegramBotService.getLastUpdateMatchResult(
+                    val chatIdMatch = getLastUpdateMatchResult(
                         newUpdates, MESSAGE_REGEX_PARAM.toRegex()
                     )
-                    chatId = telegramBotService.getChatIdFromMatchResult(chatIdMatch)
+                    chatId = getChatIdFromMatchResult(chatIdMatch)
                 }
                 telegramBotService.sendMessage(chatId, "Привет, мир!")
             }
         }
     }
 
+}
+
+private fun getLastUpdateMatchResult(updates: String, updatesRegex: Regex): MatchResult? =
+    updatesRegex.findAll(updates).lastOrNull()
+
+private fun getChatIdFromMatchResult(match: MatchResult?): Int{
+    val chatId = match?.groupValues?.get(1)?.toIntOrNull() ?: 0
+    return chatId
 }
