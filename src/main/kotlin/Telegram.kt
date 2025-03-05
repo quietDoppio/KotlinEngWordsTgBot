@@ -48,14 +48,14 @@ fun main(args: Array<String>) {
         dataCallbackMatch?.groupValues?.let { values ->
             callbackData = values[1]
             when(callbackData){
-                "statistics" -> {
+                DATA_CALLBACK_STATISTICS -> {
                     val statistics = trainer.getStatistics()
                     telegramBotService.sendMessage(chatId,
                         "Выучено ${statistics.learnedWordsCount} из" +
                             " ${statistics.totalWordsCount} слов |" +
                             " ${statistics.learnedWordsPercent}%")
                 }
-                "startLearning" -> telegramBotService.sendMessage(chatId, "ещё не реализованно")
+                DATA_CALLBACK_START_LEARNING -> telegramBotService.sendMessage(chatId, "ещё не реализованно")
                 else -> ""
             }
         }
