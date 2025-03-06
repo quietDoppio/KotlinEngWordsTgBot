@@ -1,5 +1,6 @@
 package dictionary
 
+const val STATISTIC_TO_SEND = "Выучено %d из %d слов | %d%%"
 
 fun main() {
     val trainer = try {
@@ -16,8 +17,15 @@ fun main() {
             "1" -> startLearning(trainer)
             "2" -> {
                 val statistic = trainer.getStatistics()
-                println("Выучено ${statistic.learnedWordsCount} из ${statistic.totalWordsCount} слов | ${statistic.learnedWordsPercent}%")
+                println(
+                    STATISTIC_TO_SEND.format(
+                        statistic.learnedWordsCount,
+                        statistic.totalWordsCount,
+                        statistic.learnedWordsPercent
+                    )
+                )
             }
+
             "0" -> return
             else -> println("Введите число 1, 2 или 0")
         }

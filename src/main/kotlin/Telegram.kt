@@ -1,4 +1,5 @@
 import dictionary.LearnWordsTrainer
+import dictionary.STATISTIC_TO_SEND
 
 const val UPDATES_ID_TEXT_REGEX_PARAM = "\"update_id\":(\\d+).*?\"text\":\"(.+?)\""
 const val MESSAGE_REGEX_PARAM = "\"chat\":\\{\"id\":(\\d+)"
@@ -47,15 +48,20 @@ fun main(args: Array<String>) {
 
         dataCallbackMatch?.groupValues?.let { values ->
             callbackData = values[1]
-            when(callbackData){
-                DATA_CALLBACK_STATISTICS -> {
+            when (callbackData) {
+                DATA_CALLBACK_STATISTICS_CLICKED -> {
                     val statistics = trainer.getStatistics()
-                    telegramBotService.sendMessage(chatId,
-                        "Выучено ${statistics.learnedWordsCount} из" +
-                            " ${statistics.totalWordsCount} слов |" +
-                            " ${statistics.learnedWordsPercent}%")
+                    telegramBotService.sendMessage(
+                        chatId,
+                        STATISTIC_TO_SEND.format(
+                            statistics.learnedWordsCount,
+                            statistics.totalWordsCount,
+                            statistics.learnedWordsPercent
+                        )
+                    )
                 }
-                DATA_CALLBACK_START_LEARNING -> telegramBotService.sendMessage(chatId, "ещё не реализованно")
+
+                DATA_CALLBACK_START_LEARNING_CLICKED -> telegramBotService.sendMessage(chatId, "ещё не реализованно")
                 else -> ""
             }
         }
@@ -67,7 +73,7 @@ fun main(args: Array<String>) {
 private fun getLastUpdateMatchResult(updates: String, updatesRegex: Regex): MatchResult? =
     updatesRegex.findAll(updates).lastOrNull()
 
-private fun getChatIdFromMatchResult(match: MatchResult?): Long{
+private fun getChatIdFromMatchResult(match: MatchResult?): Long {
     val chatId = match?.groupValues?.get(1)?.toLongOrNull() ?: 0L
     return chatId
 }
