@@ -52,10 +52,7 @@ class TelegramBotService(botToken: String) {
               }
             }
         """.trimIndent()
-        val postJsonRequest: HttpRequest = HttpRequest.newBuilder().uri(URI.create(sendMessageUrl))
-            .header("Content-type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(menuJsonBody))
-            .build()
+        val postJsonRequest: HttpRequest = makePostJsonRequest(sendMessageUrl, menuJsonBody)
         val response: HttpResponse<String> = client.send(postJsonRequest, HttpResponse.BodyHandlers.ofString())
         return response.body()
     }
@@ -96,10 +93,7 @@ class TelegramBotService(botToken: String) {
               }
             }
         """.trimIndent()
-        val postJsonRequest: HttpRequest = HttpRequest.newBuilder().uri(URI.create(sendMessageUrl))
-            .header("Content-type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(questionJsonBody))
-            .build()
+        val postJsonRequest: HttpRequest = makePostJsonRequest(sendMessageUrl, questionJsonBody)
         val response: HttpResponse<String> = client.send(postJsonRequest, HttpResponse.BodyHandlers.ofString())
 
         return response.body()
@@ -107,4 +101,11 @@ class TelegramBotService(botToken: String) {
 
     private fun makeRequest(botUrl: String): HttpRequest =
         HttpRequest.newBuilder().uri(URI.create(botUrl)).build()
+
+    private fun makePostJsonRequest(botUrl: String, jsonBody: String): HttpRequest {
+        return HttpRequest.newBuilder().uri(URI.create(botUrl))
+            .header("Content-type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+            .build()
+    }
 }
