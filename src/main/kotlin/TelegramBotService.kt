@@ -1,3 +1,4 @@
+import dictionary.Question
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -6,8 +7,9 @@ import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 
 const val API_TELEGRAM_URL = "https://api.telegram.org/bot"
-const val DATA_CALLBACK_STATISTICS_CLICKED = "DATA_CALLBACK_STATISTICS"
-const val DATA_CALLBACK_START_LEARNING_CLICKED = "DATA_CALLBACK_START_LEARNING"
+const val CALLBACK_DATA_STATISTICS_CLICKED = "DATA_CALLBACK_STATISTICS"
+const val CALLBACK_DATA_START_LEARNING_CLICKED = "DATA_CALLBACK_START_LEARNING"
+const val CALLBACK_DATA_ANSWER_PREFIX = "answer_"
 
 class TelegramBotService(botToken: String) {
 
@@ -39,11 +41,11 @@ class TelegramBotService(botToken: String) {
                   [
                     {
                       "text": "Начать изучение",
-                      "callback_data": "$DATA_CALLBACK_START_LEARNING_CLICKED"
+                      "callback_data": "$CALLBACK_DATA_START_LEARNING_CLICKED"
                     },
                     {
                       "text": "Статистика",
-                      "callback_data": "$DATA_CALLBACK_STATISTICS_CLICKED"
+                      "callback_data": "$CALLBACK_DATA_STATISTICS_CLICKED"
                     }
                   ]
                 ]
@@ -55,6 +57,51 @@ class TelegramBotService(botToken: String) {
             .POST(HttpRequest.BodyPublishers.ofString(menuJsonBody))
             .build()
         val response: HttpResponse<String> = client.send(postJsonRequest, HttpResponse.BodyHandlers.ofString())
+        return response.body()
+    }
+
+    fun sendQuestion(chatId: Long, question: Question): String {
+        val sendMessageUrl = "${botUrl}/sendMessage"
+        val questionJsonBody = """
+            {
+              "chat_id": $chatId,
+              "text": "${question.correctAnswer.originalWord}",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    {
+                      "text": "${question.variants[0].translatedWord}",
+                      "callback_data": "${CALLBACK_DATA_ANSWER_PREFIX}0"
+                    }                 
+                  ],
+                  [
+                     {
+                      "text": "${question.variants[1].translatedWord}",
+                      "callback_data": "${CALLBACK_DATA_ANSWER_PREFIX}1"
+                    }
+                  ],
+                  [
+                     {
+                      "text": "${question.variants[2].translatedWord}",
+                      "callback_data": "${CALLBACK_DATA_ANSWER_PREFIX}2"
+                    }
+                  ],
+                  [
+                     {
+                      "text": "${question.variants[3].translatedWord}",
+                      "callback_data": "${CALLBACK_DATA_ANSWER_PREFIX}3"
+                    }
+                  ]
+                ]
+              }
+            }
+        """.trimIndent()
+        val postJsonRequest: HttpRequest = HttpRequest.newBuilder().uri(URI.create(sendMessageUrl))
+            .header("Content-type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(questionJsonBody))
+            .build()
+        val response: HttpResponse<String> = client.send(postJsonRequest, HttpResponse.BodyHandlers.ofString())
+
         return response.body()
     }
 
