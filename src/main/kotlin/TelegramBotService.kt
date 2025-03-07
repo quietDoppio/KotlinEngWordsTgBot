@@ -69,25 +69,19 @@ class TelegramBotService(botToken: String) {
                     {
                       "text": "${question.variants[0].translatedWord}",
                       "callback_data": "${CALLBACK_DATA_ANSWER_PREFIX}0"
-                    }                 
-                  ],
-                  [
-                     {
+                    },                   
+                    {
                       "text": "${question.variants[1].translatedWord}",
                       "callback_data": "${CALLBACK_DATA_ANSWER_PREFIX}1"
-                    }
-                  ],
-                  [
-                     {
+                    },
+                    {
                       "text": "${question.variants[2].translatedWord}",
                       "callback_data": "${CALLBACK_DATA_ANSWER_PREFIX}2"
-                    }
-                  ],
-                  [
-                     {
+                    },
+                    {
                       "text": "${question.variants[3].translatedWord}",
                       "callback_data": "${CALLBACK_DATA_ANSWER_PREFIX}3"
-                    }
+                    }                              
                   ]
                 ]
               }
