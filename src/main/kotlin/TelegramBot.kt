@@ -71,21 +71,16 @@ fun main(args: Array<String>) {
 
                 dataCallbackString.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
                     val correctAnswer = question?.correctAnswer
-                    val isRightAnswer =
-                        trainer.checkAnswer(dataCallbackString.substringAfter(CALLBACK_DATA_ANSWER_PREFIX).toInt())
-                    if (isRightAnswer) {
-                        telegramBotService.sendMessage(chatId, "Верно!")
-                    } else {
-                        telegramBotService.sendMessage(
-                            chatId,
-                            "Не верно! ${correctAnswer?.originalWord} - ${correctAnswer?.translatedWord}"
-                        )
-                    }
+                    val indexOfClicked = dataCallbackString.substringAfter(CALLBACK_DATA_ANSWER_PREFIX).toInt()
+                    val isRightAnswer = trainer.checkAnswer(indexOfClicked)
 
-                    question = trainer.getNextQuestion()
-                    question?.let {
-                        telegramBotService.sendQuestion(chatId, it)
-                    }
+                    if (isRightAnswer) telegramBotService.sendMessage(chatId, "Верно!")
+                    else telegramBotService.sendMessage(
+                        chatId,
+                        "Не верно! ${correctAnswer?.originalWord} - ${correctAnswer?.translatedWord}"
+                    )
+
+                    question = checkNextQuestionAndSend(trainer, telegramBotService, chatId)
                 }
 
                 else -> ""
