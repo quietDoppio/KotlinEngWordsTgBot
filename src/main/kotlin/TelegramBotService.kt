@@ -59,42 +59,36 @@ class TelegramBotService(botToken: String) {
 
     fun sendQuestion(chatId: Long, question: Question): String {
         val sendMessageUrl = "${botUrl}/sendMessage"
-        val questionJsonBody = """
+        val questionButtonsJson = question.variants.mapIndexed { index, word ->
+            """
+            {
+              "text": "${word.translatedWord}",
+              "callback_data": "$CALLBACK_DATA_ANSWER_PREFIX$index"
+            }
+            """.trimIndent()
+        }.joinToString(",")
+
+        val questionJsonBody =
+            """
             {
               "chat_id": $chatId,
               "text": "${question.correctAnswer.originalWord}",
               "reply_markup": {
                 "inline_keyboard": [
                   [
-                    {
-                      "text": "${question.variants[0].translatedWord}",
-                      "callback_data": "${CALLBACK_DATA_ANSWER_PREFIX}0"
-                    },                   
-                    {
-                      "text": "${question.variants[1].translatedWord}",
-                      "callback_data": "${CALLBACK_DATA_ANSWER_PREFIX}1"
-                    },
-                    {
-                      "text": "${question.variants[2].translatedWord}",
-                      "callback_data": "${CALLBACK_DATA_ANSWER_PREFIX}2"
-                    },
-                    {
-                      "text": "${question.variants[3].translatedWord}",
-                      "callback_data": "${CALLBACK_DATA_ANSWER_PREFIX}3"
-                    }                              
+                    $questionButtonsJson                              
                   ]
                 ]
               }
             }
-        """.trimIndent()
+            """.trimIndent()
         val postJsonRequest: HttpRequest = makePostJsonRequest(sendMessageUrl, questionJsonBody)
         val response: HttpResponse<String> = client.send(postJsonRequest, HttpResponse.BodyHandlers.ofString())
 
         return response.body()
     }
 
-    private fun makeRequest(botUrl: String): HttpRequest =
-        HttpRequest.newBuilder().uri(URI.create(botUrl)).build()
+    private fun makeRequest(botUrl: String): HttpRequest = HttpRequest.newBuilder().uri(URI.create(botUrl)).build()
 
     private fun makePostJsonRequest(botUrl: String, jsonBody: String): HttpRequest {
         return HttpRequest.newBuilder().uri(URI.create(botUrl))
