@@ -1,4 +1,5 @@
 import dictionary.LearnWordsTrainer
+import dictionary.Question
 import dictionary.STATISTIC_TO_SEND
 
 const val UPDATES_ID_TEXT_REGEX_PARAM = "\"update_id\":(\\d+).*?\"text\":\"(.+?)\""
@@ -13,7 +14,7 @@ fun main(args: Array<String>) {
     var updateId = 0
     var chatId: Long = 0
     var userMessage: String
-    var dataCallbackString: String
+    var question: Question? = null
 
     var newUpdates: String
     var lastUpdateMatch: MatchResult?
@@ -47,9 +48,16 @@ fun main(args: Array<String>) {
         }
 
         dataCallbackMatch?.groupValues?.let { values ->
-            dataCallbackString = values[1]
-            when (dataCallbackString) {
-                CALLBACK_DATA_STATISTICS_CLICKED -> {
+            val dataCallbackString = values[1]
+            when {
+                CALLBACK_DATA_START_LEARNING_CLICKED == dataCallbackString ->
+                    question = checkNextQuestionAndSend(
+                        trainer,
+                        telegramBotService,
+                        chatId
+                    )
+
+                CALLBACK_DATA_STATISTICS_CLICKED == dataCallbackString -> {
                     val statistics = trainer.getStatistics()
                     telegramBotService.sendMessage(
                         chatId,
@@ -61,10 +69,24 @@ fun main(args: Array<String>) {
                     )
                 }
 
-                CALLBACK_DATA_START_LEARNING_CLICKED -> checkNextQuestionAndSend(trainer, telegramBotService, chatId)
+                dataCallbackString.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
+                    val correctAnswer = question?.correctAnswer
+                    val indexOfClicked = dataCallbackString.substringAfter(CALLBACK_DATA_ANSWER_PREFIX).toInt()
+                    val isRightAnswer = trainer.checkAnswer(indexOfClicked)
+
+                    if (isRightAnswer) telegramBotService.sendMessage(chatId, "Верно!")
+                    else telegramBotService.sendMessage(
+                        chatId,
+                        "Не верно! ${correctAnswer?.originalWord} - ${correctAnswer?.translatedWord}"
+                    )
+
+                    question = checkNextQuestionAndSend(trainer, telegramBotService, chatId)
+                }
+
                 else -> ""
             }
         }
+
 
     }
 
@@ -74,13 +96,14 @@ private fun checkNextQuestionAndSend(
     trainer: LearnWordsTrainer,
     telegramBotService: TelegramBotService,
     chatId: Long
-) {
+): Question? {
     val question = trainer.getNextQuestion()
     if (question == null) {
         telegramBotService.sendMessage(chatId, "Вы выучили все слова в базе")
     } else {
         telegramBotService.sendQuestion(chatId, question)
     }
+    return question
 }
 
 private fun getLastUpdateMatchResult(updates: String, updatesRegex: Regex): MatchResult? =
