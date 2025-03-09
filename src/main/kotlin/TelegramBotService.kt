@@ -1,3 +1,4 @@
+import dictionary.Question
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -6,8 +7,9 @@ import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 
 const val API_TELEGRAM_URL = "https://api.telegram.org/bot"
-const val DATA_CALLBACK_STATISTICS_CLICKED = "DATA_CALLBACK_STATISTICS"
-const val DATA_CALLBACK_START_LEARNING_CLICKED = "DATA_CALLBACK_START_LEARNING"
+const val CALLBACK_DATA_STATISTICS_CLICKED = "DATA_CALLBACK_STATISTICS"
+const val CALLBACK_DATA_START_LEARNING_CLICKED = "DATA_CALLBACK_START_LEARNING"
+const val CALLBACK_DATA_ANSWER_PREFIX = "answer_"
 
 class TelegramBotService(botToken: String) {
 
@@ -39,25 +41,59 @@ class TelegramBotService(botToken: String) {
                   [
                     {
                       "text": "Начать изучение",
-                      "callback_data": "$DATA_CALLBACK_START_LEARNING_CLICKED"
+                      "callback_data": "$CALLBACK_DATA_START_LEARNING_CLICKED"
                     },
                     {
                       "text": "Статистика",
-                      "callback_data": "$DATA_CALLBACK_STATISTICS_CLICKED"
+                      "callback_data": "$CALLBACK_DATA_STATISTICS_CLICKED"
                     }
                   ]
                 ]
               }
             }
         """.trimIndent()
-        val postJsonRequest: HttpRequest = HttpRequest.newBuilder().uri(URI.create(sendMessageUrl))
-            .header("Content-type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(menuJsonBody))
-            .build()
+        val postJsonRequest: HttpRequest = makePostJsonRequest(sendMessageUrl, menuJsonBody)
         val response: HttpResponse<String> = client.send(postJsonRequest, HttpResponse.BodyHandlers.ofString())
         return response.body()
     }
 
-    private fun makeRequest(botUrl: String): HttpRequest =
-        HttpRequest.newBuilder().uri(URI.create(botUrl)).build()
+    fun sendQuestion(chatId: Long, question: Question): String {
+        val sendMessageUrl = "${botUrl}/sendMessage"
+        val questionButtonsJson = question.variants.mapIndexed { index, word ->
+            """
+            {
+              "text": "${word.translatedWord}",
+              "callback_data": "$CALLBACK_DATA_ANSWER_PREFIX$index"
+            }
+            """.trimIndent()
+        }.joinToString(",")
+
+        val questionJsonBody =
+            """
+            {
+              "chat_id": $chatId,
+              "text": "${question.correctAnswer.originalWord}",
+              "reply_markup": {
+                "inline_keyboard": [
+                  [
+                    $questionButtonsJson                              
+                  ]
+                ]
+              }
+            }
+            """.trimIndent()
+        val postJsonRequest: HttpRequest = makePostJsonRequest(sendMessageUrl, questionJsonBody)
+        val response: HttpResponse<String> = client.send(postJsonRequest, HttpResponse.BodyHandlers.ofString())
+
+        return response.body()
+    }
+
+    private fun makeRequest(botUrl: String): HttpRequest = HttpRequest.newBuilder().uri(URI.create(botUrl)).build()
+
+    private fun makePostJsonRequest(botUrl: String, jsonBody: String): HttpRequest {
+        return HttpRequest.newBuilder().uri(URI.create(botUrl))
+            .header("Content-type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+            .build()
+    }
 }

@@ -3,7 +3,7 @@ import dictionary.STATISTIC_TO_SEND
 
 const val UPDATES_ID_TEXT_REGEX_PARAM = "\"update_id\":(\\d+).*?\"text\":\"(.+?)\""
 const val MESSAGE_REGEX_PARAM = "\"chat\":\\{\"id\":(\\d+)"
-const val DATA_CALLBACK_REGEX_PARAM = "\"data\":\"(.+?)\""
+const val CALLBACK_DATA_REGEX_PARAM = "\"data\":\"(.+?)\""
 
 fun main(args: Array<String>) {
     val botToken: String = args[0]
@@ -13,22 +13,22 @@ fun main(args: Array<String>) {
     var updateId = 0
     var chatId: Long = 0
     var userMessage: String
-    var callbackData: String
+    var dataCallbackString: String
 
     var newUpdates: String
     var lastUpdateMatch: MatchResult?
     var dataCallbackMatch: MatchResult?
 
-
     while (true) {
         Thread.sleep(2000)
         newUpdates = telegramBotService.getUpdates(updateId)
         println(newUpdates)
+
         lastUpdateMatch = getLastUpdateMatchResult(
             newUpdates, UPDATES_ID_TEXT_REGEX_PARAM.toRegex(RegexOption.DOT_MATCHES_ALL)
         )
         dataCallbackMatch = getLastUpdateMatchResult(
-            newUpdates, DATA_CALLBACK_REGEX_PARAM.toRegex()
+            newUpdates, CALLBACK_DATA_REGEX_PARAM.toRegex()
         )
         lastUpdateMatch?.groupValues?.let { values ->
             updateId = values.getOrNull(1)?.toIntOrNull()?.plus(1) ?: 0
@@ -47,9 +47,9 @@ fun main(args: Array<String>) {
         }
 
         dataCallbackMatch?.groupValues?.let { values ->
-            callbackData = values[1]
-            when (callbackData) {
-                DATA_CALLBACK_STATISTICS_CLICKED -> {
+            dataCallbackString = values[1]
+            when (dataCallbackString) {
+                CALLBACK_DATA_STATISTICS_CLICKED -> {
                     val statistics = trainer.getStatistics()
                     telegramBotService.sendMessage(
                         chatId,
@@ -61,13 +61,26 @@ fun main(args: Array<String>) {
                     )
                 }
 
-                DATA_CALLBACK_START_LEARNING_CLICKED -> telegramBotService.sendMessage(chatId, "ещё не реализованно")
+                CALLBACK_DATA_START_LEARNING_CLICKED -> checkNextQuestionAndSend(trainer, telegramBotService, chatId)
                 else -> ""
             }
         }
 
     }
 
+}
+
+private fun checkNextQuestionAndSend(
+    trainer: LearnWordsTrainer,
+    telegramBotService: TelegramBotService,
+    chatId: Long
+) {
+    val question = trainer.getNextQuestion()
+    if (question == null) {
+        telegramBotService.sendMessage(chatId, "Вы выучили все слова в базе")
+    } else {
+        telegramBotService.sendQuestion(chatId, question)
+    }
 }
 
 private fun getLastUpdateMatchResult(updates: String, updatesRegex: Regex): MatchResult? =
