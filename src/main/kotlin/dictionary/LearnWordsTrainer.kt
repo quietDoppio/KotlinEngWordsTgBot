@@ -90,9 +90,9 @@ class LearnWordsTrainer(val learnedWordsLimit: Int = 3, val questionWordsCount: 
         }
     }
 
-    fun checkAnswer(userAnswerInput: Int): Boolean {
+    fun checkAnswer(inputIndex: Int): Boolean {
         question?.let {
-            val selectedWord = it.variants[userAnswerInput]
+            val selectedWord = it.variants[inputIndex]
             val isRightAnswer = selectedWord.originalWord == it.correctAnswer.originalWord
             if (isRightAnswer) {
                 val index = dictionary.indexOf(selectedWord)

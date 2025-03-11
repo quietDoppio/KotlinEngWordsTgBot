@@ -3,7 +3,7 @@ import dictionary.Question
 import dictionary.STATISTIC_TO_SEND
 
 const val UPDATES_ID_TEXT_REGEX_PARAM = "\"update_id\":(\\d+).*?\"text\":\"(.+?)\""
-const val MESSAGE_REGEX_PARAM = "\"chat\":\\{\"id\":(\\d+)"
+const val CHAT_ID_REGEX_PARAM = "\"chat\":\\{\"id\":(-*\\d+)"
 const val CALLBACK_DATA_REGEX_PARAM = "\"data\":\"(.+?)\""
 
 fun main(args: Array<String>) {
@@ -17,7 +17,7 @@ fun main(args: Array<String>) {
     var question: Question? = null
 
     var newUpdates: String
-    var lastUpdateMatch: MatchResult?
+    var lastUpdatesIdMessage: MatchResult?
     var dataCallbackMatch: MatchResult?
 
     while (true) {
@@ -25,25 +25,24 @@ fun main(args: Array<String>) {
         newUpdates = telegramBotService.getUpdates(updateId)
         println(newUpdates)
 
-        lastUpdateMatch = getLastUpdateMatchResult(
+        lastUpdatesIdMessage = getLastUpdateMatchResult(
             newUpdates, UPDATES_ID_TEXT_REGEX_PARAM.toRegex(RegexOption.DOT_MATCHES_ALL)
         )
+        getLastUpdateMatchResult(newUpdates, CHAT_ID_REGEX_PARAM.toRegex())
+            .also { result -> chatId = getChatIdFromMatchResult(result) }
+
         dataCallbackMatch = getLastUpdateMatchResult(
             newUpdates, CALLBACK_DATA_REGEX_PARAM.toRegex()
         )
-        lastUpdateMatch?.groupValues?.let { values ->
+
+        lastUpdatesIdMessage?.groupValues?.let { values ->
             updateId = values.getOrNull(1)?.toIntOrNull()?.plus(1) ?: 0
             userMessage = values.getOrNull(2) ?: "no_user_message"
-
             println(userMessage)
+
             if (userMessage == "/menu") {
-                if (chatId == 0L) {
-                    val chatIdMatch = getLastUpdateMatchResult(
-                        newUpdates, MESSAGE_REGEX_PARAM.toRegex()
-                    )
-                    chatId = getChatIdFromMatchResult(chatIdMatch)
-                }
                 telegramBotService.sendMainMenu(chatId)
+                println(chatId)
             }
         }
 
@@ -86,8 +85,6 @@ fun main(args: Array<String>) {
                 else -> ""
             }
         }
-
-
     }
 
 }
