@@ -3,7 +3,7 @@ package dictionary
 import java.io.File
 
 const val HUNDRED_PERCENT = 100
-const val WORDS_FILE_NAME = "words"
+const val WORDS_FILE_NAME = "words_"
 
 data class Word(
     val originalWord: String,
@@ -26,13 +26,13 @@ data class Statistic(
     val learnedWordsPercent: Int,
 )
 
-class LearnWordsTrainer(val learnedWordsLimit: Int = 3, val questionWordsCount: Int = 4) {
+class LearnWordsTrainer(val id: Long = 0, val learnedWordsLimit: Int = 3, val questionWordsCount: Int = 4) {
     private var question: Question? = null
     private val dictionary = loadDictionary()
 
     private fun loadDictionary(): MutableList<Word> {
         val dictionary = mutableListOf<Word>()
-        val wordsFile = File(WORDS_FILE_NAME)
+        val wordsFile = File(WORDS_FILE_NAME + id)
         wordsFile.createNewFile()
         wordsFile.forEachLine {
             val line = it.split("|")
@@ -48,7 +48,7 @@ class LearnWordsTrainer(val learnedWordsLimit: Int = 3, val questionWordsCount: 
     }
 
     private fun saveDirectory(changedWord: Word) {
-        val wordsFile = File(WORDS_FILE_NAME)
+        val wordsFile = File(WORDS_FILE_NAME + id)
         val newString = changedWord.toString()
         val oldString = wordsFile.readLines().first { fileString ->
             fileString.dropLast(1) == newString.dropLast(1)

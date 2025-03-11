@@ -9,7 +9,8 @@ const val CALLBACK_DATA_REGEX_PARAM = "\"data\":\"(.+?)\""
 fun main(args: Array<String>) {
     val botToken: String = args[0]
     val telegramBotService = TelegramBotService(botToken)
-    val trainer = LearnWordsTrainer()
+    val trainers = mutableListOf<LearnWordsTrainer>()
+    val uniqueIds = mutableSetOf<Long>()
 
     var updateId = 0
     var chatId: Long = 0
@@ -29,7 +30,10 @@ fun main(args: Array<String>) {
             newUpdates, UPDATES_ID_TEXT_REGEX_PARAM.toRegex(RegexOption.DOT_MATCHES_ALL)
         )
         getLastUpdateMatchResult(newUpdates, CHAT_ID_REGEX_PARAM.toRegex())
-            .also { result -> chatId = getChatIdFromMatchResult(result) }
+            .also { result ->
+                chatId = getChatIdFromMatchResult(result)
+                if(uniqueIds.add(chatId)) trainers.add(LearnWordsTrainer(id = chatId))
+            }
 
         dataCallbackMatch = getLastUpdateMatchResult(
             newUpdates, CALLBACK_DATA_REGEX_PARAM.toRegex()
@@ -48,22 +52,23 @@ fun main(args: Array<String>) {
 
         dataCallbackMatch?.groupValues?.let { values ->
             val dataCallbackString = values[1]
+            val currentTrainer = trainers.find { it -> it.id == chatId  }
             when {
                 CALLBACK_DATA_START_LEARNING_CLICKED == dataCallbackString ->
                     question = checkNextQuestionAndSend(
-                        trainer,
+                        currentTrainer,
                         telegramBotService,
                         chatId
                     )
 
                 CALLBACK_DATA_STATISTICS_CLICKED == dataCallbackString -> {
-                    val statistics = trainer.getStatistics()
+                    val statistics = currentTrainer?.getStatistics()
                     telegramBotService.sendMessage(
                         chatId,
                         STATISTIC_TO_SEND.format(
-                            statistics.learnedWordsCount,
-                            statistics.totalWordsCount,
-                            statistics.learnedWordsPercent
+                            statistics?.learnedWordsCount,
+                            statistics?.totalWordsCount,
+                            statistics?.learnedWordsPercent
                         )
                     )
                 }
@@ -71,7 +76,7 @@ fun main(args: Array<String>) {
                 dataCallbackString.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
                     val correctAnswer = question?.correctAnswer
                     val indexOfClicked = dataCallbackString.substringAfter(CALLBACK_DATA_ANSWER_PREFIX).toInt()
-                    val isRightAnswer = trainer.checkAnswer(indexOfClicked)
+                    val isRightAnswer = currentTrainer?.checkAnswer(indexOfClicked) ?: false
 
                     if (isRightAnswer) telegramBotService.sendMessage(chatId, "Верно!")
                     else telegramBotService.sendMessage(
@@ -79,7 +84,7 @@ fun main(args: Array<String>) {
                         "Не верно! ${correctAnswer?.originalWord} - ${correctAnswer?.translatedWord}"
                     )
 
-                    question = checkNextQuestionAndSend(trainer, telegramBotService, chatId)
+                    question = checkNextQuestionAndSend(currentTrainer, telegramBotService, chatId)
                 }
 
                 else -> ""
@@ -90,11 +95,11 @@ fun main(args: Array<String>) {
 }
 
 private fun checkNextQuestionAndSend(
-    trainer: LearnWordsTrainer,
+    trainer: LearnWordsTrainer?,
     telegramBotService: TelegramBotService,
     chatId: Long
 ): Question? {
-    val question = trainer.getNextQuestion()
+    val question = trainer?.getNextQuestion()
     if (question == null) {
         telegramBotService.sendMessage(chatId, "Вы выучили все слова в базе")
     } else {
