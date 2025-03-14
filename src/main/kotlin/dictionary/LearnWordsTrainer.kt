@@ -3,7 +3,7 @@ package dictionary
 import java.io.File
 
 const val HUNDRED_PERCENT = 100
-const val WORDS_FILE_NAME = "words_"
+const val WORDS_FILE_NAME = "words."
 
 data class Word(
     val originalWord: String,

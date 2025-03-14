@@ -1,69 +1,63 @@
 import dictionary.LearnWordsTrainer
 import dictionary.Question
 import dictionary.STATISTIC_TO_SEND
-
-const val UPDATES_ID_TEXT_REGEX_PARAM = "\"update_id\":(\\d+).*?\"text\":\"(.+?)\""
-const val CHAT_ID_REGEX_PARAM = "\"chat\":\\{\"id\":(-*\\d+)"
-const val CALLBACK_DATA_REGEX_PARAM = "\"data\":\"(.+?)\""
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 fun main(args: Array<String>) {
     val botToken: String = args[0]
     val telegramBotService = TelegramBotService(botToken)
     val trainers = mutableListOf<LearnWordsTrainer>()
-    val uniqueIds = mutableSetOf<Long>()
+    val uniqueTrainersIds = mutableSetOf<Long>()
 
-    var updateId = 0
-    var chatId: Long = 0
-    var userMessage: String
+    val json = Json {
+        ignoreUnknownKeys = true
+    }
+    var responseString: String
+    var lastUpdate: Update
+    var lastUpdateId = 0L
+    var chatId = 0L
+    var message: String?
+    var data: String?
     var question: Question? = null
 
-    var newUpdates: String
-    var lastUpdatesIdMessage: MatchResult?
-    var dataCallbackMatch: MatchResult?
+
 
     while (true) {
         Thread.sleep(2000)
-        newUpdates = telegramBotService.getUpdates(updateId)
-        println(newUpdates)
+        responseString = telegramBotService.getUpdates(lastUpdateId)
+        println(responseString)
+        val response: Response = json.decodeFromString(responseString)
+        val updates = response.result
 
-        lastUpdatesIdMessage = getLastUpdateMatchResult(
-            newUpdates, UPDATES_ID_TEXT_REGEX_PARAM.toRegex(RegexOption.DOT_MATCHES_ALL)
-        )
-        getLastUpdateMatchResult(newUpdates, CHAT_ID_REGEX_PARAM.toRegex())
-            .also { result ->
-                chatId = getChatIdFromMatchResult(result)
-                if(uniqueIds.add(chatId)) trainers.add(LearnWordsTrainer(id = chatId))
-            }
+        lastUpdate = updates.lastOrNull() ?: continue
+        lastUpdateId = lastUpdate.updateId + 1
+        chatId = lastUpdate.message?.chat?.chatId ?: lastUpdate.callbackQuery?.message?.chat?.chatId ?: 0
+        message = lastUpdate.message?.text
+        data = lastUpdate.callbackQuery?.data
 
-        dataCallbackMatch = getLastUpdateMatchResult(
-            newUpdates, CALLBACK_DATA_REGEX_PARAM.toRegex()
-        )
-
-        lastUpdatesIdMessage?.groupValues?.let { values ->
-            updateId = values.getOrNull(1)?.toIntOrNull()?.plus(1) ?: 0
-            userMessage = values.getOrNull(2) ?: "no_user_message"
-            println(userMessage)
-
-            if (userMessage == "/menu") {
-                telegramBotService.sendMainMenu(chatId)
-                println(chatId)
-            }
+        if (uniqueTrainersIds.add(chatId)) trainers.add(LearnWordsTrainer(id = chatId))
+        if (message == "/menu") {
+            telegramBotService.sendMainMenu(json, chatId)
+            println(chatId)
         }
 
-        dataCallbackMatch?.groupValues?.let { values ->
-            val dataCallbackString = values[1]
-            val currentTrainer = trainers.find { it -> it.id == chatId  }
+        data?.let { data ->
+            val currentTrainer = trainers.find { it.id == chatId }
             when {
-                CALLBACK_DATA_START_LEARNING_CLICKED == dataCallbackString ->
+                CALLBACK_DATA_START_LEARNING_CLICKED == data ->
                     question = checkNextQuestionAndSend(
                         currentTrainer,
                         telegramBotService,
+                        json,
                         chatId
                     )
 
-                CALLBACK_DATA_STATISTICS_CLICKED == dataCallbackString -> {
+                CALLBACK_DATA_STATISTICS_CLICKED == data -> {
                     val statistics = currentTrainer?.getStatistics()
                     telegramBotService.sendMessage(
+                        json,
                         chatId,
                         STATISTIC_TO_SEND.format(
                             statistics?.learnedWordsCount,
@@ -73,18 +67,18 @@ fun main(args: Array<String>) {
                     )
                 }
 
-                dataCallbackString.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
+                data.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
                     val correctAnswer = question?.correctAnswer
-                    val indexOfClicked = dataCallbackString.substringAfter(CALLBACK_DATA_ANSWER_PREFIX).toInt()
+                    val indexOfClicked = data.substringAfter(CALLBACK_DATA_ANSWER_PREFIX).toInt()
                     val isRightAnswer = currentTrainer?.checkAnswer(indexOfClicked) ?: false
 
-                    if (isRightAnswer) telegramBotService.sendMessage(chatId, "Верно!")
+                    if (isRightAnswer) telegramBotService.sendMessage(json,chatId, "Верно!")
                     else telegramBotService.sendMessage(
+                        json,
                         chatId,
                         "Не верно! ${correctAnswer?.originalWord} - ${correctAnswer?.translatedWord}"
                     )
-
-                    question = checkNextQuestionAndSend(currentTrainer, telegramBotService, chatId)
+                    question = checkNextQuestionAndSend(currentTrainer, telegramBotService, json, chatId)
                 }
 
                 else -> ""
@@ -97,21 +91,52 @@ fun main(args: Array<String>) {
 private fun checkNextQuestionAndSend(
     trainer: LearnWordsTrainer?,
     telegramBotService: TelegramBotService,
+    json: Json,
     chatId: Long
 ): Question? {
     val question = trainer?.getNextQuestion()
     if (question == null) {
-        telegramBotService.sendMessage(chatId, "Вы выучили все слова в базе")
+        telegramBotService.sendMessage(json ,chatId, "Вы выучили все слова в базе")
     } else {
-        telegramBotService.sendQuestion(chatId, question)
+        telegramBotService.sendQuestion(json, chatId, question)
     }
     return question
 }
 
-private fun getLastUpdateMatchResult(updates: String, updatesRegex: Regex): MatchResult? =
-    updatesRegex.findAll(updates).lastOrNull()
+@Serializable
+data class Response(
+    @SerialName("result")
+    val result: List<Update>
+)
 
-private fun getChatIdFromMatchResult(match: MatchResult?): Long {
-    val chatId = match?.groupValues?.get(1)?.toLongOrNull() ?: 0L
-    return chatId
-}
+@Serializable
+data class Update(
+    @SerialName("update_id")
+    val updateId: Long,
+    @SerialName("callback_query")
+    val callbackQuery: CallbackQuery? = null,
+    @SerialName("message")
+    val message: Message? = null,
+)
+
+@Serializable
+data class CallbackQuery(
+    @SerialName("data")
+    val data: String? = null,
+    @SerialName("message")
+    val message: Message? = null
+)
+
+@Serializable
+data class Message(
+    @SerialName("text")
+    val text: String,
+    @SerialName("chat")
+    val chat: Chat
+)
+
+@Serializable
+data class Chat(
+    @SerialName("id")
+    val chatId: Long,
+)
