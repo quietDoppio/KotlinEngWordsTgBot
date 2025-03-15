@@ -3,7 +3,7 @@ package dictionary
 import java.io.File
 
 const val HUNDRED_PERCENT = 100
-const val WORDS_FILE_NAME = "words."
+const val WORDS_FILE_NAME = "words.txt"
 
 data class Word(
     val originalWord: String,
@@ -26,14 +26,19 @@ data class Statistic(
     val learnedWordsPercent: Int,
 )
 
-class LearnWordsTrainer(val id: Long = 0, val learnedWordsLimit: Int = 3, val questionWordsCount: Int = 4) {
-    private var question: Question? = null
+class LearnWordsTrainer(private val fileName: String = WORDS_FILE_NAME, val learnedWordsLimit: Int = 3, val questionWordsCount: Int = 4) {
+    private var _question: Question? = null
+    val question get() = _question
+
     private val dictionary = loadDictionary()
 
     private fun loadDictionary(): MutableList<Word> {
         val dictionary = mutableListOf<Word>()
-        val wordsFile = File(WORDS_FILE_NAME + id)
-        wordsFile.createNewFile()
+        val wordsFile = File("$fileName.txt")
+        if(!wordsFile.exists()){
+            File(WORDS_FILE_NAME).copyTo(wordsFile)
+        }
+
         wordsFile.forEachLine {
             val line = it.split("|")
             dictionary.add(
@@ -48,7 +53,7 @@ class LearnWordsTrainer(val id: Long = 0, val learnedWordsLimit: Int = 3, val qu
     }
 
     private fun saveDirectory(changedWord: Word) {
-        val wordsFile = File(WORDS_FILE_NAME + id)
+        val wordsFile = File("$fileName.txt")
         val newString = changedWord.toString()
         val oldString = wordsFile.readLines().first { fileString ->
             fileString.dropLast(1) == newString.dropLast(1)
@@ -82,7 +87,7 @@ class LearnWordsTrainer(val id: Long = 0, val learnedWordsLimit: Int = 3, val qu
                 notLearnedList.shuffled().take(questionWordsCount)
             }
 
-            question = Question(
+            _question = Question(
                 variants = variants,
                 correctAnswer = correctAnswer,
             )
@@ -114,6 +119,12 @@ class LearnWordsTrainer(val id: Long = 0, val learnedWordsLimit: Int = 3, val qu
             learnedWordsCount = learnedWordsCount,
             learnedWordsPercent = learnedWordsPercent,
         )
+    }
+    fun resetStatistics(){
+        dictionary.forEach { word ->
+            word.correctAnswerCount = 0
+            saveDirectory(word)
+        }
     }
 
 }
