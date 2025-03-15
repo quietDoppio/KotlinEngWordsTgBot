@@ -33,12 +33,12 @@ class LearnWordsTrainer(private val fileName: String = WORDS_FILE_NAME, val lear
     private val dictionary = loadDictionary()
 
     private fun loadDictionary(): MutableList<Word> {
+        try {
         val dictionary = mutableListOf<Word>()
         val wordsFile = File("$fileName.txt")
         if(!wordsFile.exists()){
             File(WORDS_FILE_NAME).copyTo(wordsFile)
         }
-
         wordsFile.forEachLine {
             val line = it.split("|")
             dictionary.add(
@@ -50,6 +50,9 @@ class LearnWordsTrainer(private val fileName: String = WORDS_FILE_NAME, val lear
             )
         }
         return dictionary
+        } catch (e: Exception){
+            throw IndexOutOfBoundsException("Не удалось загрузить словарь")
+        }
     }
 
     private fun saveDirectory(changedWord: Word) {
