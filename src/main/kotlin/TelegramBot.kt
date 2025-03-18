@@ -8,97 +8,85 @@ import kotlinx.serialization.json.Json
 fun main(args: Array<String>) {
     val botToken: String = args[0]
     val telegramBotService = TelegramBotService(botToken)
-    val trainers = mutableListOf<LearnWordsTrainer>()
-    val uniqueTrainersIds = mutableSetOf<Long>()
+    val trainers = HashMap<Long, LearnWordsTrainer>()
 
-    val json = Json {
-        ignoreUnknownKeys = true
-    }
+    val json = Json { ignoreUnknownKeys = true }
     var responseString: String
-    var lastUpdate: Update
-    var lastUpdateId = 0L
-    var chatId = 0L
-    var message: String?
-    var data: String?
-    var question: Question? = null
-
-
+    var lastUpdateId: Long = 0
 
     while (true) {
         Thread.sleep(2000)
         responseString = telegramBotService.getUpdates(lastUpdateId)
         println(responseString)
         val response: Response = json.decodeFromString(responseString)
-        val updates = response.result
+        if (response.updates.isEmpty()) continue
 
-        lastUpdate = updates.lastOrNull() ?: continue
-        lastUpdateId = lastUpdate.updateId + 1
-        chatId = lastUpdate.message?.chat?.chatId ?: lastUpdate.callbackQuery?.message?.chat?.chatId ?: 0
-        message = lastUpdate.message?.text
-        data = lastUpdate.callbackQuery?.data
-
-        if (uniqueTrainersIds.add(chatId)) trainers.add(LearnWordsTrainer(id = chatId))
-        if (message == "/menu") {
-            telegramBotService.sendMainMenu(json, chatId)
-            println(chatId)
-        }
-
-        data?.let { data ->
-            val currentTrainer = trainers.find { it.id == chatId }
-            when {
-                CALLBACK_DATA_START_LEARNING_CLICKED == data ->
-                    question = checkNextQuestionAndSend(
-                        currentTrainer,
-                        telegramBotService,
-                        json,
-                        chatId
-                    )
-
-                CALLBACK_DATA_STATISTICS_CLICKED == data -> {
-                    val statistics = currentTrainer?.getStatistics()
-                    telegramBotService.sendMessage(
-                        json,
-                        chatId,
-                        STATISTIC_TO_SEND.format(
-                            statistics?.learnedWordsCount,
-                            statistics?.totalWordsCount,
-                            statistics?.learnedWordsPercent
-                        )
-                    )
-                }
-
-                data.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
-                    val correctAnswer = question?.correctAnswer
-                    val indexOfClicked = data.substringAfter(CALLBACK_DATA_ANSWER_PREFIX).toInt()
-                    val isRightAnswer = currentTrainer?.checkAnswer(indexOfClicked) ?: false
-
-                    if (isRightAnswer) telegramBotService.sendMessage(json,chatId, "Верно!")
-                    else telegramBotService.sendMessage(
-                        json,
-                        chatId,
-                        "Не верно! ${correctAnswer?.originalWord} - ${correctAnswer?.translatedWord}"
-                    )
-                    question = checkNextQuestionAndSend(currentTrainer, telegramBotService, json, chatId)
-                }
-
-                else -> ""
-            }
-        }
+        val updates = response.updates.sortedBy { it.updateId }
+        lastUpdateId = updates.last().updateId + 1
+        updates.forEach { handleUpdate(it, json, trainers, telegramBotService) }
     }
+}
 
+private fun handleUpdate(
+    update: Update,
+    json: Json,
+    trainers: HashMap<Long, LearnWordsTrainer>,
+    botService: TelegramBotService
+) {
+    val chatId = update.message?.chat?.chatId ?: update.callbackQuery?.message?.chat?.chatId ?: return
+    val message = update.message?.text
+    val data = update.callbackQuery?.data ?: ""
+    val trainer = trainers.getOrPut(chatId) { LearnWordsTrainer(fileName = chatId.toString()) }
+
+    if (message == "/start") {
+        botService.sendMainMenu(json, chatId)
+        println(chatId)
+    }
+    when {
+        CALLBACK_DATA_START_LEARNING_CLICKED == data -> checkNextQuestionAndSend(trainer, botService, json, chatId)
+        CALLBACK_DATA_RETURN_CLICKED == data -> botService.sendMainMenu(json, chatId)
+        CALLBACK_DATA_RESET_CLICKED == data -> trainer.resetStatistics()
+
+        CALLBACK_DATA_STATISTICS_CLICKED == data -> {
+            val statistics = trainer.getStatistics()
+            botService.sendMessage(
+                json,
+                chatId,
+                STATISTIC_TO_SEND.format(
+                    statistics.learnedWordsCount,
+                    statistics.totalWordsCount,
+                    statistics.learnedWordsPercent
+                )
+            )
+        }
+
+        data.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
+            val indexOfClicked = data.substringAfter(CALLBACK_DATA_ANSWER_PREFIX).toInt()
+            val isRightAnswer = trainer.checkAnswer(indexOfClicked)
+
+            if (isRightAnswer) botService.sendMessage(json, chatId, "Верно!")
+            else botService.sendMessage(
+                json,
+                chatId,
+                "Не верно! ${trainer.question?.correctAnswer?.originalWord} - ${trainer.question?.correctAnswer?.translatedWord}"
+            )
+            checkNextQuestionAndSend(trainer, botService, json, chatId)
+        }
+
+    }
 }
 
 private fun checkNextQuestionAndSend(
     trainer: LearnWordsTrainer?,
-    telegramBotService: TelegramBotService,
+    botService: TelegramBotService,
     json: Json,
     chatId: Long
 ): Question? {
     val question = trainer?.getNextQuestion()
     if (question == null) {
-        telegramBotService.sendMessage(json ,chatId, "Вы выучили все слова в базе")
+        botService.sendMessage(json, chatId, "Вы выучили все слова в базе")
     } else {
-        telegramBotService.sendQuestion(json, chatId, question)
+        botService.sendQuestion(json, chatId, question)
     }
     return question
 }
@@ -106,7 +94,7 @@ private fun checkNextQuestionAndSend(
 @Serializable
 data class Response(
     @SerialName("result")
-    val result: List<Update>
+    val updates: List<Update>
 )
 
 @Serializable

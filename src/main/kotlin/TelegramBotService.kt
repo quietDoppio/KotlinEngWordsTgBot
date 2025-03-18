@@ -8,8 +8,10 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
 const val API_TELEGRAM_URL = "https://api.telegram.org/bot"
-const val CALLBACK_DATA_STATISTICS_CLICKED = "DATA_CALLBACK_STATISTICS"
-const val CALLBACK_DATA_START_LEARNING_CLICKED = "DATA_CALLBACK_START_LEARNING"
+const val CALLBACK_DATA_STATISTICS_CLICKED = "DATA_CALLBACK_STATISTICS_CLICKED"
+const val CALLBACK_DATA_START_LEARNING_CLICKED = "DATA_CALLBACK_START_LEARNING_CLICKED"
+const val CALLBACK_DATA_RESET_CLICKED = "CALLBACK_DATA_RESET_CLICKED"
+const val CALLBACK_DATA_RETURN_CLICKED = "CALLBACK_DATA_RETURN_CLICKED"
 const val CALLBACK_DATA_ANSWER_PREFIX = "answer_"
 
 class TelegramBotService(botToken: String) {
@@ -48,10 +50,14 @@ class TelegramBotService(botToken: String) {
                     listOf(
                         InlineKeyboard(text = "Изучение слов", callbackData = CALLBACK_DATA_START_LEARNING_CLICKED),
                         InlineKeyboard(text = "Статистика", callbackData = CALLBACK_DATA_STATISTICS_CLICKED)
+                    ),
+                    listOf(
+                        InlineKeyboard(text = "Сбросить статистику", callbackData = CALLBACK_DATA_RESET_CLICKED),
                     )
                 )
             )
         )
+
         val jsonBodyString = json.encodeToString(jsonBody)
         val postJsonRequest: HttpRequest = makePostJsonRequest(sendMessageUrl, jsonBodyString)
         val response: HttpResponse<String> = client.send(postJsonRequest, HttpResponse.BodyHandlers.ofString())
@@ -70,7 +76,13 @@ class TelegramBotService(botToken: String) {
                             text = word.translatedWord,
                             callbackData = "$CALLBACK_DATA_ANSWER_PREFIX$index"
                         )
-                    }
+                    },
+                    listOf(
+                        InlineKeyboard(
+                            text = "Вернуться в меню",
+                            callbackData = CALLBACK_DATA_RETURN_CLICKED
+                        )
+                    )
                 )
             )
         )
