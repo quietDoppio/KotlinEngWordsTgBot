@@ -1,20 +1,51 @@
-apple|яблоко|0
-book|книга|0
-cat|кот|0
-dog|собака|0
-house|дом|0
-tree|дерево|0
-car|машина|0
-friend|друг|0
-sun|солнце|0
-moon|луна|0
-water|вода|0
-fire|огонь|0
-door|дверь|0
-window|окно|0
-table|стол|0
-chair|стул|0
-phone|телефон|0
-computer|компьютер|0
-time|время|0
-love|любовь|0
+Achieve|достигать|0
+Allow|разрешать|0
+Avoid|избегать|0
+Consider|рассматривать, обдумывать|0
+Develop|развивать|0
+Improve|улучшать|0
+Manage|управлять, справляться|0
+Offer|предлагать|0
+Prevent|предотвращать|0
+Require|требовать|0
+Advantage|преимущество|0
+Challenge|вызов|0
+Decision|решение|0
+Experience|опыт|0
+Issue|проблема, вопрос|0
+Opportunity|возможность|0
+Result|результат|0
+Solution|решение|0
+Success|успех|0
+Trend|тенденция|0
+Available|доступный|0
+Common|общий, распространённый|0
+Effective|эффективный|0
+Essential|необходимый|0
+Familiar|знакомый|0
+Important|важный|0
+Possible|возможный|0
+Recent|недавний|0
+Similar|похожий|0
+Useful|полезный|0
+Actually|на самом деле|0
+Especially|особенно|0
+Generally|вообще, обычно|0
+However|однако|0
+Instead|вместо|0
+Probably|вероятно|0
+Recently|недавно|0
+Simply|просто|0
+Therefore|поэтому|0
+Usually|обычно|0
+Carry out|выполнять|0
+Find out|узнавать|0
+Give up|сдаваться|0
+Look after|заботиться|0
+Look forward to|с нетерпением ждать|0
+Put off|откладывать|0
+Set up|организовывать|0
+Take off|взлетать, снимать|0
+Turn on|включать|0
+Turn off|выключать|0
+Work out|тренироваться|0
