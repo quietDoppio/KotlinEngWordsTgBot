@@ -19,11 +19,14 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Fix gradlew permissions
+        run: chmod +x ./gradlew
+
       - name: Build with Gradle
         run: ./gradlew shadowJar
 
       - name: Rename file
-        run: mv build/libs/EnglishWordsBot-1.0-SNAPSHOT-all.jar bot.jar
+        run: mv build/libs/KotlinEngWordsTgBot-1.0-SNAPSHOT-all.jar bot.jar
 
       - name: Deploy jar to VPS
         uses: appleboy/scp-action@master
