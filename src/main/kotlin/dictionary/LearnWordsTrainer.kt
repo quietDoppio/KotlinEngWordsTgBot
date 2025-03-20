@@ -3,7 +3,7 @@ package dictionary
 import java.io.File
 
 const val HUNDRED_PERCENT = 100
-const val WORDS_FILE_NAME = "words.txt"
+const val WORDS_FILE_NAME = "words"
 
 data class Word(
     val originalWord: String,
@@ -26,7 +26,11 @@ data class Statistic(
     val learnedWordsPercent: Int,
 )
 
-class LearnWordsTrainer(private val fileName: String = WORDS_FILE_NAME, val learnedWordsLimit: Int = 3, val questionWordsCount: Int = 4) {
+class LearnWordsTrainer(
+    private val fileName: String = WORDS_FILE_NAME,
+    val learnedWordsLimit: Int = 3,
+    val questionWordsCount: Int = 4
+) {
     private var _question: Question? = null
     val question get() = _question
 
@@ -34,24 +38,29 @@ class LearnWordsTrainer(private val fileName: String = WORDS_FILE_NAME, val lear
 
     private fun loadDictionary(): MutableList<Word> {
         try {
-        val dictionary = mutableListOf<Word>()
-        val wordsFile = File("$fileName.txt")
-        if(!wordsFile.exists()){
-            File(WORDS_FILE_NAME).copyTo(wordsFile)
-        }
-        wordsFile.forEachLine {
-            val line = it.split("|")
-            dictionary.add(
-                Word(
-                    originalWord = line[0],
-                    translatedWord = line[1],
-                    correctAnswerCount = line.getOrNull(2)?.toIntOrNull() ?: 0
-                )
-            )
-        }
-        return dictionary
-        } catch (e: Exception){
-            throw IndexOutOfBoundsException("Не удалось загрузить словарь")
+            val dictionary = mutableListOf<Word>()
+            val wordsFile = File("$fileName.txt")
+            val mainDictionary = File("$WORDS_FILE_NAME.txt")
+            if (!wordsFile.exists() || mainDictionary.length() != wordsFile.length()) {
+                mainDictionary.copyTo(wordsFile, overwrite = true)
+                wordsFile.writeText(wordsFile.readText().trim())
+            }
+
+            wordsFile.forEachLine {
+                if (it.trim().isNotBlank() && it.contains("|")) {
+                    val line = it.split("|")
+                    dictionary.add(
+                        Word(
+                            originalWord = line[0],
+                            translatedWord = line[1],
+                            correctAnswerCount = line.getOrNull(2)?.toIntOrNull() ?: 0
+                        )
+                    )
+                }
+            }
+            return dictionary
+        } catch (e: Exception) {
+            throw e
         }
     }
 
