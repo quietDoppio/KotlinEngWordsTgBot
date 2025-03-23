@@ -8,7 +8,8 @@ import kotlinx.serialization.json.Json
 fun main(args: Array<String>) {
     val botToken: String = args[0]
     val telegramBotService = TelegramBotService(botToken)
-    val trainers = HashMap<Long, LearnWordsTrainer>()
+    //val trainers = HashMap<Long, LearnWordsTrainer>()
+    val trainer = LearnWordsTrainer()
 
     val json = Json { ignoreUnknownKeys = true }
     var responseString: String
@@ -23,21 +24,21 @@ fun main(args: Array<String>) {
 
         val updates = response.updates.sortedBy { it.updateId }
         lastUpdateId = updates.last().updateId + 1
-        updates.forEach { handleUpdate(it, json, trainers, telegramBotService) }
+        updates.forEach { handleUpdate(it, json, trainer, telegramBotService) }
     }
 }
 
 private fun handleUpdate(
     update: Update,
     json: Json,
-    trainers: HashMap<Long, LearnWordsTrainer>,
+    trainer: LearnWordsTrainer,
     botService: TelegramBotService
 ) {
     val chatId = update.message?.chat?.chatId ?: update.callbackQuery?.message?.chat?.chatId ?: return
     val message = update.message?.text
     val data = update.callbackQuery?.data ?: ""
-    val trainer = trainers.getOrPut(chatId) { LearnWordsTrainer(fileName = chatId.toString()) }
-
+    trainer.fileUserDictionary.setChatId(chatId)
+    trainer.fileUserDictionary.createUser("quietDoppio", chatId)
     if (message == "/start") {
         botService.sendMainMenu(json, chatId)
         println(chatId)

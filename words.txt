@@ -13,8 +13,3 @@ fire|огонь|0
 door|дверь|0
 window|окно|0
 table|стол|0
-chair|стул|0
-phone|телефон|0
-computer|компьютер|0
-time|время|0
-love|любовь|0
