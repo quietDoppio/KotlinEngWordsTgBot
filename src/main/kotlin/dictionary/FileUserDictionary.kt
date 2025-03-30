@@ -5,14 +5,6 @@ import com.zaxxer.hikari.HikariDataSource
 import java.io.File
 import java.sql.ResultSet
 
-fun main() {
-    val fileUserDictionary = FileUserDictionary()
-    println(fileUserDictionary.getSize())
-    Runtime.getRuntime().addShutdownHook(Thread {
-        Database.closeConnection()
-    })
-}
-
 interface IUserDictionary {
     fun updateDictionary()
     fun getNumOfLearnedWords(): Int
