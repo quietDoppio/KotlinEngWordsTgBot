@@ -1,4 +1,4 @@
-import dictionary.Database
+
 import dictionary.FileUserDictionary
 import dictionary.LearnWordsTrainer
 import dictionary.Question
@@ -6,13 +6,9 @@ import dictionary.STATISTIC_TO_SEND
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.io.File
 
 fun main(args: Array<String>) {
     val fileUserDictionary = FileUserDictionary()
-    Runtime.getRuntime().addShutdownHook(Thread {
-        Database.closeConnection()
-    })
     val botToken: String = args[0]
     val telegramBotService = TelegramBotService(botToken)
     val trainers = HashMap<Long, LearnWordsTrainer>()
@@ -44,7 +40,6 @@ private fun handleUpdate(
     val chatId = update.message?.chat?.chatId ?: update.callbackQuery?.message?.chat?.chatId ?: return
     val username = update.message?.from?.username ?: update.callbackQuery?.from?.username ?: "unknown_user"
     fileUserDictionary.insertUser(chatId, username)
-    fileUserDictionary.insertUserAnswers(chatId)
     val message = update.message?.text
     val data = update.callbackQuery?.data ?: ""
     val trainer = trainers.getOrPut(chatId) { LearnWordsTrainer(fileName = chatId.toString()) }
