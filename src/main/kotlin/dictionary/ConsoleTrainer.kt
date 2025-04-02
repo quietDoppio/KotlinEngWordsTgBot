@@ -16,7 +16,7 @@ fun main() {
         when (userInput) {
             "1" -> startLearning(trainer)
             "2" -> {
-                val statistic = trainer.getStatistics()
+                val statistic = trainer.getStatistics(148)
                 println(
                     STATISTIC_TO_SEND.format(
                         statistic.learnedWordsCount,
@@ -36,7 +36,7 @@ fun startLearning(trainer: LearnWordsTrainer) {
     val inputRange = 0..trainer.questionWordsCount
 
     while (true) {
-        val question = trainer.getNextQuestion()
+        val question = trainer.getNextQuestion(148)
         if (question == null) {
             println("Слова для изучения кончились")
             return
@@ -49,7 +49,7 @@ fun startLearning(trainer: LearnWordsTrainer) {
                 0 -> return
                 else -> {
                     val resultText = "${question.correctAnswer.originalWord} - ${question.correctAnswer.translatedWord}"
-                    if (trainer.checkAnswer(userInput - 1)) println("Верно! $resultText")
+                    if (trainer.checkAnswer(userInput - 1, 148)) println("Верно! $resultText")
                     else println("Не верно! $resultText")
                 }
             }

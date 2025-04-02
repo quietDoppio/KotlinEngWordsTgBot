@@ -11,7 +11,7 @@ fun main(args: Array<String>) {
     val fileUserDictionary = FileUserDictionary()
     val botToken: String = args[0]
     val telegramBotService = TelegramBotService(botToken)
-    val trainers = HashMap<Long, LearnWordsTrainer>()
+    val trainer = LearnWordsTrainer()
 
     val json = Json { ignoreUnknownKeys = true }
     var responseString: String
@@ -26,23 +26,23 @@ fun main(args: Array<String>) {
 
         val updates = response.updates.sortedBy { it.updateId }
         lastUpdateId = updates.last().updateId + 1
-        updates.forEach { handleUpdate(it, json, trainers, telegramBotService, fileUserDictionary) }
+        updates.forEach { handleUpdate(it, json, trainer, telegramBotService, fileUserDictionary) }
     }
 }
 
 private fun handleUpdate(
     update: Update,
     json: Json,
-    trainers: HashMap<Long, LearnWordsTrainer>,
+    trainer: LearnWordsTrainer,
     botService: TelegramBotService,
     fileUserDictionary: FileUserDictionary
 ) {
     val chatId = update.message?.chat?.chatId ?: update.callbackQuery?.message?.chat?.chatId ?: return
     val username = update.message?.from?.username ?: update.callbackQuery?.from?.username ?: "unknown_user"
     fileUserDictionary.insertUser(chatId, username)
+
     val message = update.message?.text
     val data = update.callbackQuery?.data ?: ""
-    val trainer = trainers.getOrPut(chatId) { LearnWordsTrainer(fileName = chatId.toString()) }
 
     if (message == "/start") {
         botService.sendMainMenu(json, chatId)
@@ -51,10 +51,10 @@ private fun handleUpdate(
     when {
         CALLBACK_DATA_START_LEARNING_CLICKED == data -> checkNextQuestionAndSend(trainer, botService, json, chatId)
         CALLBACK_DATA_RETURN_CLICKED == data -> botService.sendMainMenu(json, chatId)
-        CALLBACK_DATA_RESET_CLICKED == data -> trainer.resetStatistics()
+        CALLBACK_DATA_RESET_CLICKED == data -> trainer.resetStatistics(chatId)
 
         CALLBACK_DATA_STATISTICS_CLICKED == data -> {
-            val statistics = trainer.getStatistics()
+            val statistics = trainer.getStatistics(chatId)
             botService.sendMessage(
                 json,
                 chatId,
@@ -68,7 +68,7 @@ private fun handleUpdate(
 
         data.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
             val indexOfClicked = data.substringAfter(CALLBACK_DATA_ANSWER_PREFIX).toInt()
-            val isRightAnswer = trainer.checkAnswer(indexOfClicked)
+            val isRightAnswer = trainer.checkAnswer(indexOfClicked, chatId)
 
             if (isRightAnswer) botService.sendMessage(json, chatId, "Верно!")
             else botService.sendMessage(
@@ -88,7 +88,7 @@ private fun checkNextQuestionAndSend(
     json: Json,
     chatId: Long
 ): Question? {
-    val question = trainer?.getNextQuestion()
+    val question = trainer?.getNextQuestion(chatId)
     if (question == null) {
         botService.sendMessage(json, chatId, "Вы выучили все слова в базе")
     } else {

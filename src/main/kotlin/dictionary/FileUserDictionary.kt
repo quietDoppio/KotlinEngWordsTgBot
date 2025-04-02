@@ -113,9 +113,28 @@ class FileUserDictionary() {
         """.trimIndent()
         Database.getConnection().use { connection ->
             connection.prepareStatement(queryInsert).use { statement ->
-                statement.executeBatch()
+                statement.executeUpdate()
             }
         }
+    }
+    fun getCurrentAnswerCount(word: String, chatId: Long): Int{
+        var value = 0
+        val queryAnswerCount = """
+            SELECT correct_answer_count 
+            FROM user_answers ua
+            JOIN users u ON ua.user_id = u.id
+            JOIN words w ON ua.word_id = w.id
+            WHERE u.chat_id = ? AND w.text = ?
+        """.trimIndent()
+        Database.getConnection().use { connection ->
+            connection.prepareStatement(queryAnswerCount).use { statement ->
+                statement.setLong(1, chatId)
+                statement.setString(2, word)
+                val resultSet = statement.executeQuery()
+                if(resultSet.next()) value = resultSet.getInt(1)
+            }
+        }
+        return value
     }
 
     fun getSize(): Int {
