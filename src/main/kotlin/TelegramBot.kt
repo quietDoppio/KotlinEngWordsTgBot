@@ -1,3 +1,5 @@
+
+import dictionary.FileUserDictionary
 import dictionary.LearnWordsTrainer
 import dictionary.Question
 import dictionary.STATISTIC_TO_SEND
@@ -8,7 +10,7 @@ import kotlinx.serialization.json.Json
 fun main(args: Array<String>) {
     val botToken: String = args[0]
     val telegramBotService = TelegramBotService(botToken)
-    val trainers = HashMap<Long, LearnWordsTrainer>()
+    val trainer = LearnWordsTrainer()
 
     val json = Json { ignoreUnknownKeys = true }
     var responseString: String
@@ -23,20 +25,22 @@ fun main(args: Array<String>) {
 
         val updates = response.updates.sortedBy { it.updateId }
         lastUpdateId = updates.last().updateId + 1
-        updates.forEach { handleUpdate(it, json, trainers, telegramBotService) }
+        updates.forEach { handleUpdate(it, json, trainer, telegramBotService) }
     }
 }
 
 private fun handleUpdate(
     update: Update,
     json: Json,
-    trainers: HashMap<Long, LearnWordsTrainer>,
-    botService: TelegramBotService
+    trainer: LearnWordsTrainer,
+    botService: TelegramBotService,
 ) {
     val chatId = update.message?.chat?.chatId ?: update.callbackQuery?.message?.chat?.chatId ?: return
+    val username = update.message?.from?.username ?: update.callbackQuery?.from?.username ?: "unknown_user"
+    trainer.fileUserDictionary.insertUser(chatId, username)
+
     val message = update.message?.text
     val data = update.callbackQuery?.data ?: ""
-    val trainer = trainers.getOrPut(chatId) { LearnWordsTrainer(fileName = chatId.toString()) }
 
     if (message == "/start") {
         botService.sendMainMenu(json, chatId)
@@ -45,10 +49,10 @@ private fun handleUpdate(
     when {
         CALLBACK_DATA_START_LEARNING_CLICKED == data -> checkNextQuestionAndSend(trainer, botService, json, chatId)
         CALLBACK_DATA_RETURN_CLICKED == data -> botService.sendMainMenu(json, chatId)
-        CALLBACK_DATA_RESET_CLICKED == data -> trainer.resetStatistics()
+        CALLBACK_DATA_RESET_CLICKED == data -> trainer.resetStatistics(chatId)
 
         CALLBACK_DATA_STATISTICS_CLICKED == data -> {
-            val statistics = trainer.getStatistics()
+            val statistics = trainer.getStatistics(chatId)
             botService.sendMessage(
                 json,
                 chatId,
@@ -62,7 +66,7 @@ private fun handleUpdate(
 
         data.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
             val indexOfClicked = data.substringAfter(CALLBACK_DATA_ANSWER_PREFIX).toInt()
-            val isRightAnswer = trainer.checkAnswer(indexOfClicked)
+            val isRightAnswer = trainer.checkAnswer(indexOfClicked, chatId)
 
             if (isRightAnswer) botService.sendMessage(json, chatId, "Верно!")
             else botService.sendMessage(
@@ -82,7 +86,7 @@ private fun checkNextQuestionAndSend(
     json: Json,
     chatId: Long
 ): Question? {
-    val question = trainer?.getNextQuestion()
+    val question = trainer?.getNextQuestion(chatId)
     if (question == null) {
         botService.sendMessage(json, chatId, "Вы выучили все слова в базе")
     } else {
@@ -112,7 +116,9 @@ data class CallbackQuery(
     @SerialName("data")
     val data: String? = null,
     @SerialName("message")
-    val message: Message? = null
+    val message: Message? = null,
+    @SerialName("from")
+    val from: From
 )
 
 @Serializable
@@ -120,11 +126,23 @@ data class Message(
     @SerialName("text")
     val text: String,
     @SerialName("chat")
-    val chat: Chat
+    val chat: Chat,
+    @SerialName("from")
+    val from: From
+)
+
+@Serializable
+data class From(
+    @SerialName("username")
+    val username: String? = null
 )
 
 @Serializable
 data class Chat(
     @SerialName("id")
     val chatId: Long,
+    @SerialName("username")
+    val username: String? = null,
+    @SerialName("title")
+    val title: String? = null
 )
