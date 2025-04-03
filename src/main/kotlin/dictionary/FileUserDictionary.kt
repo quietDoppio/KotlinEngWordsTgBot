@@ -4,10 +4,10 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import java.io.File
 
-class FileUserDictionary() {
+class FileUserDictionary(val limit: Int) {
     private object Database {
         private val config = HikariConfig().apply {
-            jdbcUrl = "jdbc:sqlite:sample.bd"
+            jdbcUrl = "jdbc:sqlite:database.bd"
             maximumPoolSize = 1
         }
         private val dataSource = HikariDataSource(config)
@@ -17,8 +17,9 @@ class FileUserDictionary() {
                 dataSource.close()
             }
         }
+
         init {
-            Runtime.getRuntime().addShutdownHook(Thread{
+            Runtime.getRuntime().addShutdownHook(Thread {
                 closeConnection()
             })
         }
@@ -32,14 +33,14 @@ class FileUserDictionary() {
     private fun createTables() {
         val queryWordsTable = """
         CREATE TABLE IF NOT EXISTS words (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INTEGER PRIMARY KEY,
         text VARCHAR UNIQUE,
         translate VARCHAR
         )
     """.trimIndent()
         val queryCreateUsers = """
         CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INTEGER PRIMARY KEY,
         chat_id INTEGER UNIQUE,
         user_name VARCHAR
         )
@@ -117,10 +118,10 @@ class FileUserDictionary() {
             }
         }
     }
-    fun getCurrentAnswerCount(word: String, chatId: Long): Int{
-        var value = 0
+
+    fun getCurrentAnswerCount(word: String, chatId: Long): Int {
         val queryAnswerCount = """
-            SELECT correct_answer_count 
+            SELECT correct_answer_count AS count
             FROM user_answers ua
             JOIN users u ON ua.user_id = u.id
             JOIN words w ON ua.word_id = w.id
@@ -131,62 +132,55 @@ class FileUserDictionary() {
                 statement.setLong(1, chatId)
                 statement.setString(2, word)
                 val resultSet = statement.executeQuery()
-                if(resultSet.next()) value = resultSet.getInt(1)
+                return if (resultSet.next()) resultSet.getInt("count") else 0
             }
         }
-        return value
     }
 
     fun getSize(): Int {
-        var count = 0
-        val queryGetCount = "SELECT COUNT(*) FROM words"
+        val queryGetCount = "SELECT COUNT(*) AS count FROM words"
         Database.getConnection().use { connection ->
             connection.createStatement().use { statement ->
                 val resultSet = statement.executeQuery(queryGetCount)
-                if (resultSet.next()) {
-                    count = resultSet.getInt(1)
-                }
+                return if (resultSet.next()) resultSet.getInt("count") else 0
             }
         }
-        return count
     }
 
     fun getNumOfLearnedWords(chatId: Long): Int {
-        var count = 0
         val querySelectCountOfLearned = """
             SELECT COUNT(*) AS count
             FROM user_answers ua
             JOIN users u ON ua.user_id = u.id         
-            WHERE u.chat_id = ? AND ua.correct_answer_count >= 3                 
+            WHERE u.chat_id = ? AND ua.correct_answer_count >= ?                 
         """.trimIndent()
         Database.getConnection().use { connection ->
             connection.prepareStatement(querySelectCountOfLearned).use { statement ->
                 statement.setLong(1, chatId)
+                statement.setInt(2, limit)
                 val resultSet = statement.executeQuery()
-                if (resultSet.next()) {
-                    count = resultSet.getInt("count")
-                }
+                return if (resultSet.next()) resultSet.getInt("count") else 0
             }
         }
-        return count
     }
 
     fun getLearnedWords(chatId: Long): List<Word> {
         val learned = mutableListOf<Word>()
         val querySelectLearned = """
-            SELECT w.text, w.translate
+            SELECT w.text AS text, w.translate AS translate
             FROM user_answers ua
             JOIN users u ON ua.user_id = u.id
             JOIN words w ON ua.word_id = w.id
-            WHERE u.chat_id = ? AND ua.correct_answer_count >= 3                 
+            WHERE u.chat_id = ? AND ua.correct_answer_count >= ?                 
         """.trimIndent()
         Database.getConnection().use { connection ->
             connection.prepareStatement(querySelectLearned).use { statement ->
                 statement.setLong(1, chatId)
+                statement.setInt(2, limit)
                 val resultSet = statement.executeQuery()
                 while (resultSet.next()) {
-                    val text = resultSet.getString(1)
-                    val translate = resultSet.getString(2)
+                    val text = resultSet.getString("text")
+                    val translate = resultSet.getString("translate")
                     learned.add(Word(text, translate))
                 }
             }
@@ -201,11 +195,12 @@ class FileUserDictionary() {
             FROM user_answers ua
             JOIN words w ON ua.word_id = w.id
             JOIN users u ON ua.user_id = u.id
-            WHERE u.chat_id = ? AND ua.correct_answer_count < 3
+            WHERE u.chat_id = ? AND ua.correct_answer_count < ?
         """.trimIndent()
         Database.getConnection().use { connection ->
             connection.prepareStatement(querySelectUnlearned).use { statement ->
                 statement.setLong(1, chatId)
+                statement.setInt(2, limit)
                 val resultSet = statement.executeQuery()
                 while (resultSet.next()) {
                     val text = resultSet.getString("text")
@@ -222,7 +217,7 @@ class FileUserDictionary() {
             UPDATE user_answers 
             SET correct_answer_count = ?
             WHERE user_id = (SELECT id FROM users WHERE chat_id = ?)
-                  AND word_id = (SELECT id FROM words WHERE text = ?)
+            AND word_id = (SELECT id FROM words WHERE text = ?)
         """.trimIndent()
         Database.getConnection().use { connection ->
             connection.prepareStatement(querySetCount).use { statement ->

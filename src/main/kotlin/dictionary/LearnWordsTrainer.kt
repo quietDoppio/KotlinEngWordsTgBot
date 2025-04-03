@@ -23,7 +23,7 @@ class LearnWordsTrainer(
     val learnedWordsLimit: Int = 3,
     val questionWordsCount: Int = 4
 ) {
-    private val fileUserDictionary = FileUserDictionary()
+    val fileUserDictionary = FileUserDictionary(learnedWordsLimit)
 
     private var _question: Question? = null
     val question get() = _question
@@ -61,7 +61,9 @@ class LearnWordsTrainer(
             val selectedWord = it.variants[inputIndex]
             val isRightAnswer = selectedWord.originalWord == it.correctAnswer.originalWord
             if (isRightAnswer) {
-                val newCorrectAnswerCount = fileUserDictionary.getCurrentAnswerCount(selectedWord.originalWord, chatId) + 1
+                val newCorrectAnswerCount =
+                    fileUserDictionary.getCurrentAnswerCount(selectedWord.originalWord, chatId) + 1
+
                 fileUserDictionary.setCorrectAnswersCount(
                     selectedWord.originalWord,
                     newCorrectAnswerCount,
