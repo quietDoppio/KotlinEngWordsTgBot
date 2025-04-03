@@ -7,7 +7,7 @@ import java.io.File
 class FileUserDictionary(val limit: Int) {
     private object Database {
         private val config = HikariConfig().apply {
-            jdbcUrl = "jdbc:sqlite:database.bd"
+            jdbcUrl = "jdbc:sqlite:database.db"
             maximumPoolSize = 1
         }
         private val dataSource = HikariDataSource(config)
