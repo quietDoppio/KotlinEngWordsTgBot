@@ -1,5 +1,4 @@
 
-import dictionary.FileUserDictionary
 import dictionary.LearnWordsTrainer
 import dictionary.Question
 import dictionary.STATISTIC_TO_SEND
@@ -11,6 +10,7 @@ fun main(args: Array<String>) {
     val botToken: String = args[0]
     val telegramBotService = TelegramBotService(botToken)
     val trainer = LearnWordsTrainer()
+    trainer.fileUserDictionary.updateDictionary()
 
     val json = Json { ignoreUnknownKeys = true }
     var responseString: String
