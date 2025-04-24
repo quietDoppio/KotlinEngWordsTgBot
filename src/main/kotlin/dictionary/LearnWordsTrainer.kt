@@ -1,7 +1,6 @@
 package dictionary
 
 const val HUNDRED_PERCENT = 100
-const val WORDS_FILE_NAME = "words"
 
 data class Word(
     val originalWord: String,
@@ -21,9 +20,10 @@ data class Statistic(
 
 class LearnWordsTrainer(
     val learnedWordsLimit: Int = 3,
-    val questionWordsCount: Int = 4
+    var questionWordsCount: Int = 4,
+    val jdbcUrl: String = "jdbc:sqlite:Database.db"
 ) {
-    val fileUserDictionary = FileUserDictionary(learnedWordsLimit)
+    val fileUserDictionary = FileUserDictionary(learnedWordsLimit, jdbcUrl)
 
     private var _question: Question? = null
     val question get() = _question
@@ -48,10 +48,8 @@ class LearnWordsTrainer(
                 unlearnedList.shuffled().take(questionWordsCount)
             }
 
-            _question = Question(
-                variants = variants,
-                correctAnswer = correctAnswer,
-            )
+            _question = Question(variants = variants, correctAnswer = correctAnswer)
+
             return question
         }
     }
@@ -87,10 +85,7 @@ class LearnWordsTrainer(
         )
     }
 
-    fun resetStatistics(chatId: Long) {
-        fileUserDictionary.resetUserProgress(chatId)
-    }
-
+    fun resetStatistics(chatId: Long): Boolean = fileUserDictionary.resetUserProgress(chatId)
 }
 
 
