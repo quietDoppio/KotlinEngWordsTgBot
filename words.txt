@@ -18,3 +18,5 @@ phone|телефон|0
 computer|компьютер|0
 time|время|0
 love|любовь|0
+subtle|тонкий|0
+concurantly|одновременно|0

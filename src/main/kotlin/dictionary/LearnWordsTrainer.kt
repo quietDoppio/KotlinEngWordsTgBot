@@ -1,7 +1,7 @@
 package dictionary
 
 const val HUNDRED_PERCENT = 100
-
+const val JDBC_URL = "jdbc:sqlite:Database.db"
 data class Word(
     val originalWord: String,
     val translatedWord: String,
@@ -21,7 +21,7 @@ data class Statistic(
 class LearnWordsTrainer(
     val learnedWordsLimit: Int = 3,
     var questionWordsCount: Int = 4,
-    val jdbcUrl: String = "jdbc:sqlite:Database.db"
+    val jdbcUrl: String = JDBC_URL
 ) {
     val fileUserDictionary = FileUserDictionary(learnedWordsLimit, jdbcUrl)
 

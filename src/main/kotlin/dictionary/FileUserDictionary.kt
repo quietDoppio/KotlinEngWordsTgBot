@@ -7,7 +7,7 @@ import java.sql.DriverManager
 class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
 
     private fun getConnection(): Connection {
-        return  DriverManager.getConnection(jdbcUrl).also { conn ->
+        return DriverManager.getConnection(jdbcUrl).also { conn ->
             conn.createStatement().use { stmt ->
                 stmt.execute("PRAGMA foreign_keys = ON")
             }
@@ -52,7 +52,35 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
         }
     }
 
-    fun updateDictionary() {
+    fun updateDictionary(newWords: List<Word>) {
+        val queryUpdateDictionary ="""
+                INSERT OR IGNORE INTO words (text, translate) VALUES (?, ?) 
+        """.trimMargin().trim()
+        getConnection().use { connection ->
+            connection.autoCommit = false
+            try {
+                connection.prepareStatement(queryUpdateDictionary).use { statement ->
+                    newWords.forEach { word ->
+                            val text = word.originalWord
+                            val translate = word.translatedWord
+                            statement.setString(1, text)
+                            statement.setString(2, translate)
+                            statement.addBatch()
+                        }
+                    statement.executeBatch()
+                    connection.commit()
+                }
+            } catch (e: Exception) {
+                connection.rollback()
+                println(e.message)
+            } finally {
+                connection.autoCommit = true
+            }
+        }
+        insertUserAnswers()
+    }
+
+    fun initDictionary() {
         val words = File("words.txt")
         val queryDeleteWords = """
             DELETE FROM words
@@ -176,6 +204,23 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
         """.trimIndent()
         getConnection().use { connection ->
             connection.prepareStatement(queryInsert).use { statement ->
+                statement.executeUpdate()
+            }
+        }
+    }
+
+    private fun insertUserAnswers(chatId: Long) {
+        val queryInsert = """
+            INSERT OR IGNORE INTO user_answers (user_id, word_id)
+            SELECT u.id, w.id
+            FROM users u
+            JOIN words w
+            WHERE u.chat_id = ?
+            ORDER BY u.id, w.id
+        """.trimIndent()
+        getConnection().use { connection ->
+            connection.prepareStatement(queryInsert).use { statement ->
+                statement.setLong(1, chatId)
                 statement.executeUpdate()
             }
         }

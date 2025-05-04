@@ -1,16 +1,17 @@
-
 import dictionary.LearnWordsTrainer
 import dictionary.Question
 import dictionary.STATISTIC_TO_SEND
+import dictionary.Word
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.io.File
 
 fun main(args: Array<String>) {
     val botToken: String = args[0]
     val telegramBotService = TelegramBotService(botToken)
     val trainer = LearnWordsTrainer()
-    trainer.fileUserDictionary.updateDictionary()
+    trainer.fileUserDictionary.initDictionary()
 
     val json = Json { ignoreUnknownKeys = true }
     var responseString: String
@@ -40,11 +41,34 @@ private fun handleUpdate(
     trainer.fileUserDictionary.insertUser(chatId, username)
 
     val message = update.message?.text
+    val document = update.message?.document
     val data = update.callbackQuery?.data ?: ""
 
     if (message == "/start") {
         botService.sendMainMenu(json, chatId)
         println(chatId)
+    }
+    if (document != null) {
+        val jsonResponse = botService.getFileRequest(document.fileId, json)
+        val response: GetFileResponse = json.decodeFromString(jsonResponse)
+        response.result?.let { response ->
+            botService.downloadFile(response.filePath, document.fileName)
+        }
+        println(response)
+        val newWords: MutableList<Word> = mutableListOf()
+        File(document.fileName).forEachLine { line ->
+            val parts = line.split("|")
+            if(parts.size == 2){
+                val text = parts[0].trim()
+                val translate = parts[1].trim()
+                newWords.add(Word(originalWord = text, translatedWord = translate))
+                val endsWithNewLine: Boolean = File("words.txt").readText().endsWith("\n")
+                val lineToAppend = "${text}|${translate}|0"
+                val correctLine = if(endsWithNewLine) lineToAppend else "\n$lineToAppend"
+                File("words.txt").appendText(correctLine)
+            }
+        }
+        trainer.fileUserDictionary.updateDictionary(newWords)
     }
     when {
         CALLBACK_DATA_START_LEARNING_CLICKED == data -> checkNextQuestionAndSend(trainer, botService, json, chatId)
@@ -124,11 +148,45 @@ data class CallbackQuery(
 @Serializable
 data class Message(
     @SerialName("text")
-    val text: String,
+    val text: String? = null,
     @SerialName("chat")
     val chat: Chat,
     @SerialName("from")
-    val from: From
+    val from: From,
+    @SerialName("document")
+    val document: Document? = null
+)
+
+@Serializable
+data class GetFileResponse(
+    val ok: Boolean,
+    val result: TelegramFile? = null
+)
+
+@Serializable
+data class TelegramFile(
+    @SerialName("file_id")
+    val fileId: String,
+    @SerialName("file_unique_id")
+    val fileUniqueId: String,
+    @SerialName("file_size")
+    val fileSize: Long,
+    @SerialName("file_path")
+    val filePath: String
+)
+
+@Serializable
+data class Document(
+    @SerialName("file_name")
+    val fileName: String,
+    @SerialName("mime_type")
+    val mimeType: String,
+    @SerialName("file_id")
+    val fileId: String,
+    @SerialName("file_unique_id")
+    val fileUniqueId: String,
+    @SerialName("file_size")
+    val fileSize: Long
 )
 
 @Serializable
