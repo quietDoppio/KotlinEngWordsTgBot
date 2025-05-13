@@ -6,7 +6,6 @@ import java.io.File
 import java.io.InputStream
 import java.net.URI
 import java.net.http.HttpClient
-import java.net.http.HttpClient.newHttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
@@ -15,12 +14,16 @@ const val CALLBACK_DATA_STATISTICS_CLICKED = "DATA_CALLBACK_STATISTICS_CLICKED"
 const val CALLBACK_DATA_START_LEARNING_CLICKED = "DATA_CALLBACK_START_LEARNING_CLICKED"
 const val CALLBACK_DATA_RESET_CLICKED = "CALLBACK_DATA_RESET_CLICKED"
 const val CALLBACK_DATA_RETURN_CLICKED = "CALLBACK_DATA_RETURN_CLICKED"
+const val CALLBACK_DATA_ADD_WORDS = "CALLBACK_DATA_ADD_WORDS"
 const val CALLBACK_DATA_ANSWER_PREFIX = "answer_"
+const val EMOJI_DIGITS = "\uFE0F\u20E3"
 
 class TelegramBotService(private val botToken: String) {
 
+    private val numsEmojiList = ('1'..'4').map { it -> "$it$EMOJI_DIGITS" }
     private val botUrl = API_TELEGRAM_URL + botToken
     private val client: HttpClient = HttpClient.newBuilder().build()
+
 
     fun getUpdates(updateId: Long): String {
         val request: HttpRequest = makeGetRequest("$botUrl/getUpdates?offset=$updateId")
@@ -43,6 +46,31 @@ class TelegramBotService(private val botToken: String) {
         return response.body()
     }
 
+    fun sendNewWordsRequest(json: Json, chatId: Long, message: String): String {
+        val jsonBody = SendMessageBody(
+            chatId = chatId,
+            text = message,
+            replyMarkup = ReplyMarkup(
+                listOf(
+                    listOf(
+                        InlineKeyboardButton(
+                            text = "меню",
+                            callbackData = CALLBACK_DATA_RETURN_CLICKED,
+                        )
+                    )
+                )
+            )
+        )
+        val jsonBodyString = json.encodeToString(jsonBody)
+
+        val request: HttpRequest = makePostRequest(
+            botUrl = "${botUrl}/sendMessage",
+            jsonBodyString = jsonBodyString,
+        )
+        val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+        return response.body()
+    }
+
     fun sendMainMenu(json: Json, chatId: Long): String {
         val sendMessageUrl = "${botUrl}/sendMessage"
         val jsonBody = SendMessageBody(
@@ -51,13 +79,11 @@ class TelegramBotService(private val botToken: String) {
             replyMarkup = ReplyMarkup(
                 listOf(
                     listOf(
-                        InlineKeyboardButton(
-                            text = "Изучение слов",
-                            callbackData = CALLBACK_DATA_START_LEARNING_CLICKED
-                        ),
+                        InlineKeyboardButton(text = "Изучение слов", callbackData = CALLBACK_DATA_START_LEARNING_CLICKED),
                         InlineKeyboardButton(text = "Статистика", callbackData = CALLBACK_DATA_STATISTICS_CLICKED)
                     ),
                     listOf(
+                        InlineKeyboardButton(text = "Обновить словарь", callbackData = CALLBACK_DATA_ADD_WORDS),
                         InlineKeyboardButton(text = "Сбросить статистику", callbackData = CALLBACK_DATA_RESET_CLICKED),
                     )
                 )
@@ -72,14 +98,20 @@ class TelegramBotService(private val botToken: String) {
 
     fun sendQuestion(json: Json, chatId: Long, question: Question): String {
         val sendMessageUrl = "${botUrl}/sendMessage"
+        val questionString: String = buildString {
+            append("${question.correctAnswer.originalWord}\n")
+            append(question.variants.mapIndexed { index, word ->
+                "\n${numsEmojiList[index]} ${word.translatedWord}"
+            }.joinToString("\n"))
+        }
         val jsonBody = SendMessageBody(
             chatId = chatId,
-            text = question.correctAnswer.originalWord,
+            text = questionString,
             replyMarkup = ReplyMarkup(
                 listOf(
                     question.variants.mapIndexed { index, word ->
                         InlineKeyboardButton(
-                            text = word.translatedWord,
+                            text = numsEmojiList[index],
                             callbackData = "$CALLBACK_DATA_ANSWER_PREFIX$index"
                         )
                     },
@@ -99,7 +131,8 @@ class TelegramBotService(private val botToken: String) {
         return response.body()
     }
 
-    private fun makeGetRequest(botUrl: String): HttpRequest = HttpRequest.newBuilder().uri(URI.create(botUrl)).GET().build()
+    private fun makeGetRequest(botUrl: String): HttpRequest =
+        HttpRequest.newBuilder().uri(URI.create(botUrl)).GET().build()
 
     private fun makePostRequest(botUrl: String, jsonBodyString: String): HttpRequest {
         return HttpRequest.newBuilder().uri(URI.create(botUrl))
@@ -107,7 +140,8 @@ class TelegramBotService(private val botToken: String) {
             .POST(HttpRequest.BodyPublishers.ofString(jsonBodyString))
             .build()
     }
-    fun downloadFile(filePath: String, fileName: String){
+
+    fun downloadFile(filePath: String, fileName: String) {
         val urlFilePath = "${API_TELEGRAM_URL.dropLast(4)}/file/bot$botToken/$filePath"
         println(urlFilePath)
         val request: HttpRequest = makeGetRequest(urlFilePath)
@@ -117,6 +151,7 @@ class TelegramBotService(private val botToken: String) {
         val newFile = File(fileName)
         body.copyTo(newFile.outputStream(), 16 * 1024)
     }
+
     fun getFileRequest(fileId: String, json: Json): String {
         val urlGetFile = "$botUrl/getFile"
         val requestBody = GetFileBody(fileId)

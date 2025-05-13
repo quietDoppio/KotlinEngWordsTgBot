@@ -22,8 +22,11 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
         val queryWordsTable = """
         CREATE TABLE IF NOT EXISTS words (
         id INTEGER PRIMARY KEY,
-        text VARCHAR UNIQUE,
-        translate VARCHAR
+        user_id INTEGER,
+        text VARCHAR,
+        translate VARCHAR,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        UNIQUE (text, user_id)
         )
     """.trimIndent()
         val queryCreateUsers = """
@@ -52,9 +55,14 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
         }
     }
 
-    fun updateDictionary(newWords: List<Word>) {
+    fun updateDictionary(newWords: List<Word>, chatId: Long) {
         val queryUpdateDictionary ="""
-                INSERT OR IGNORE INTO words (text, translate) VALUES (?, ?) 
+                INSERT OR IGNORE INTO words (text, translate, user_id) 
+                VALUES (
+                    ?, 
+                    ?, 
+                    (SELECT id FROM users WHERE chat_id = ?)
+                ) 
         """.trimMargin().trim()
         getConnection().use { connection ->
             connection.autoCommit = false
@@ -65,6 +73,7 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
                             val translate = word.translatedWord
                             statement.setString(1, text)
                             statement.setString(2, translate)
+                            statement.setLong(3, chatId)
                             statement.addBatch()
                         }
                     statement.executeBatch()
@@ -77,41 +86,7 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
                 connection.autoCommit = true
             }
         }
-        insertUserAnswers()
-    }
-
-    fun initDictionary() {
-        val words = File("words.txt")
-        val queryDeleteWords = """
-            DELETE FROM words
-        """.trimIndent()
-        val queryInsertWords = """
-            INSERT OR IGNORE INTO words (text, translate)
-            VALUES (?, ?)
-        """.trimIndent()
-        getConnection().use { connection ->
-            connection.autoCommit = false
-            try {
-                connection.createStatement().use { statement ->
-                    statement.executeUpdate(queryDeleteWords)
-                }
-                connection.prepareStatement(queryInsertWords).use { statement ->
-                    words.forEachLine { line ->
-                        val parts = line.split("|")
-                        statement.setString(1, parts[0])
-                        statement.setString(2, parts[1])
-                        statement.addBatch()
-                    }
-                    statement.executeBatch()
-                    connection.commit()
-                }
-            } catch (e: Exception) {
-                println(e)
-                connection.rollback()
-            } finally {
-                connection.autoCommit = true
-            }
-        }
+        insertUserAnswers(chatId)
     }
 
     fun deleteData() {
@@ -125,8 +100,14 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
     }
 
     fun insertTestData(words: File) {
-        val queryInsertWords = "INSERT OR REPLACE INTO words (text, translate) VALUES (?, ?)"
         val queryInsertUser = "INSERT OR REPLACE INTO users (chat_id, user_name) VALUES (?, ?)"
+        val queryInsertWords = """
+            INSERT OR REPLACE INTO words (user_id, text, translate)
+             VALUES (
+                (SELECT id FROM users WHERE chat_id = ?), ?, ?
+             )
+            
+        """.trimIndent()
         val queryInsertUserAnswers = """
             INSERT OR REPLACE INTO user_answers (user_id, word_id, correct_answer_count)
             VALUES (
@@ -150,18 +131,19 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
         getConnection().use { connection ->
             connection.autoCommit = false
             try {
-                connection.prepareStatement(queryInsertWords).use { statement ->
-                    linesTriple.forEach { t ->
-                        statement.setString(1, t.first)
-                        statement.setString(2, t.second)
-                        statement.addBatch()
-                    }
-                    statement.executeBatch()
-                }
                 connection.prepareStatement(queryInsertUser).use { statement ->
                     statement.setLong(1, 0L)
                     statement.setString(2, "testUser")
                     statement.executeUpdate()
+                }
+                connection.prepareStatement(queryInsertWords).use { statement ->
+                    linesTriple.forEach { t ->
+                        statement.setLong(1, 0L)
+                        statement.setString(2, t.first)
+                        statement.setString(3, t.second)
+                        statement.addBatch()
+                    }
+                    statement.executeBatch()
                 }
                 connection.prepareStatement(queryInsertUserAnswers).use { statement ->
                     linesTriple.forEach { t ->
@@ -191,30 +173,14 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
                 statement.executeUpdate()
             }
         }
-        insertUserAnswers()
-    }
-
-    private fun insertUserAnswers() {
-        val queryInsert = """
-            INSERT OR IGNORE INTO user_answers (user_id, word_id)
-            SELECT u.id, w.id
-            FROM users u
-            CROSS JOIN words w
-            ORDER BY u.id, w.id
-        """.trimIndent()
-        getConnection().use { connection ->
-            connection.prepareStatement(queryInsert).use { statement ->
-                statement.executeUpdate()
-            }
-        }
     }
 
     private fun insertUserAnswers(chatId: Long) {
         val queryInsert = """
             INSERT OR IGNORE INTO user_answers (user_id, word_id)
             SELECT u.id, w.id
-            FROM users u
-            JOIN words w
+            FROM words w
+            JOIN users u ON u.id = w.user_id
             WHERE u.chat_id = ?
             ORDER BY u.id, w.id
         """.trimIndent()
@@ -230,25 +196,30 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
         val queryAnswerCount = """
             SELECT correct_answer_count AS count
             FROM user_answers ua
-            JOIN users u ON ua.user_id = u.id
-            JOIN words w ON ua.word_id = w.id
-            WHERE u.chat_id = ? AND w.text = ?
+            WHERE user_id = (SELECT id FROM users WHERE chat_id = ?)
+            AND word_id = (
+                SELECT id FROM words
+                WHERE text = ?
+                AND user_id = (SELECT id FROM users WHERE chat_id = ?)
+            )
         """.trimIndent()
         getConnection().use { connection ->
             connection.prepareStatement(queryAnswerCount).use { statement ->
                 statement.setLong(1, chatId)
                 statement.setString(2, word)
+                statement.setLong(3, chatId)
                 val resultSet = statement.executeQuery()
                 return if (resultSet.next()) resultSet.getInt("count") else 0
             }
         }
     }
 
-    fun getSize(): Int {
-        val queryGetCount = "SELECT COUNT(*) AS count FROM words"
+    fun getSize(chatId: Long): Int {
+        val queryGetCount = "SELECT COUNT(*) AS count FROM words WHERE user_id = (SELECT id FROM users WHERE chat_id = ?)"
         getConnection().use { connection ->
-            connection.createStatement().use { statement ->
-                val resultSet = statement.executeQuery(queryGetCount)
+            connection.prepareStatement(queryGetCount).use { statement ->
+                statement.setLong(1, chatId)
+                val resultSet = statement.executeQuery()
                 return if (resultSet.next()) resultSet.getInt("count") else 0
             }
         }
@@ -339,16 +310,21 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
 
     fun setCorrectAnswersCount(word: String, correctAnswersCount: Int, chatId: Long) {
         val querySetCount = """
-            UPDATE user_answers 
+            UPDATE user_answers
             SET correct_answer_count = ?
-            WHERE user_id = (SELECT id FROM users WHERE chat_id = ?)
-            AND word_id = (SELECT id FROM words WHERE text = ?)
+            WHERE user_id = (SELECT id FROM users WHERE chat_id = ?)          
+            AND word_id = (
+                SELECT id FROM words
+                WHERE text = ?
+                AND user_id = (SELECT id FROM users WHERE chat_id = ?)        
+            )
         """.trimIndent()
         getConnection().use { connection ->
             connection.prepareStatement(querySetCount).use { statement ->
                 statement.setInt(1, correctAnswersCount)
                 statement.setLong(2, chatId)
                 statement.setString(3, word)
+                statement.setLong(4, chatId)
                 statement.executeUpdate()
             }
         }

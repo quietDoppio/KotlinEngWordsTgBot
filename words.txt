@@ -19,4 +19,4 @@ computer|компьютер|0
 time|время|0
 love|любовь|0
 subtle|тонкий|0
-concurantly|одновременно|0
+concurrently|одновременно|0

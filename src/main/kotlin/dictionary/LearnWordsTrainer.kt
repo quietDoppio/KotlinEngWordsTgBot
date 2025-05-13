@@ -73,7 +73,7 @@ class LearnWordsTrainer(
     }
 
     fun getStatistics(chatId: Long): Statistic {
-        val totalWordsCount = fileUserDictionary.getSize()
+        val totalWordsCount = fileUserDictionary.getSize(chatId)
         val learnedWordsCount = fileUserDictionary.getNumOfLearnedWords(chatId)
         val learnedWordsPercent =
             if (learnedWordsCount != 0) ((learnedWordsCount * HUNDRED_PERCENT) / totalWordsCount) else 0
