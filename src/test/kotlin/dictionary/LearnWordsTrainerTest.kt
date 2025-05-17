@@ -103,7 +103,7 @@ class LearnWordsTrainerTest {
 
         trainer.fileUserDictionary.insertTestData(learnedWordsFile)
         val question = trainer.getNextQuestion(0L)
-        val numOfWords = trainer.fileUserDictionary.getSize()
+        val numOfWords = trainer.fileUserDictionary.getSize(0L)
         val numOfLearnedWords = trainer.fileUserDictionary.getNumOfLearnedWords(0L)
         kotlin.test.assertNull(question, "question is null")
         kotlin.test.assertEquals(numOfWords, numOfLearnedWords, "not every word is learned")
