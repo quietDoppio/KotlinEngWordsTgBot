@@ -19,12 +19,19 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
     }
 
     private fun createTables() {
+        val queryFilesIdsTable = """
+            CREATE TABLE IF NOT EXISTS files_ids (
+            id INTEGER PRIMARY KEY,
+            text VARCHAR UNIQUE,
+            file_id VARCHAR UNIQUE
+            )
+        """.trimIndent()
         val queryWordsTable = """
         CREATE TABLE IF NOT EXISTS words (
         id INTEGER PRIMARY KEY,
         user_id INTEGER,
         text VARCHAR,
-        translate VARCHAR,
+        translate VARCHAR,     
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
         UNIQUE (text, user_id)
         )
@@ -48,6 +55,7 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
     """.trimIndent()
         getConnection().use { connection ->
             connection.createStatement().use { statement ->
+                statement.executeUpdate(queryFilesIdsTable)
                 statement.executeUpdate(queryWordsTable)
                 statement.executeUpdate(queryCreateUsers)
                 statement.executeUpdate(queryCreateUserAnswers)
@@ -55,8 +63,50 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
         }
     }
 
+    fun insertFileId(fileId: String, originalWord: String) {
+        val queryInsert = """
+            INSERT OR IGNORE INTO files_ids (text ,file_id)
+            VALUES(?, ?)
+        """.trimIndent()
+        getConnection().use { connection ->
+            connection.prepareStatement(queryInsert).use { statement ->
+                statement.setString(1, originalWord)
+                statement.setString(2, fileId)
+                statement.executeUpdate()
+            }
+        }
+    }
+    fun isFileIdExists(originalWord: String): Boolean{
+        val queryCheckFileId = """
+            SELECT EXISTS (
+                SELECT 1 FROM files_ids WHERE text = ?
+            )
+        """.trimIndent()
+        getConnection().use { connection ->
+            connection.prepareStatement(queryCheckFileId).use { statement ->
+                statement.setString(1, originalWord)
+                val resultSet = statement.executeQuery()
+                return if(resultSet.next()) resultSet.getBoolean(1) else false
+            }
+        }
+    }
+    fun getFileId(originalWord: String): String? {
+        val queryGetFileId = """
+            SELECT file_id
+            FROM files_ids
+            WHERE text = ?
+        """.trimIndent()
+        getConnection().use { connection ->
+            connection.prepareStatement(queryGetFileId).use { statement ->
+                statement.setString(1, originalWord)
+                val resultSet = statement.executeQuery()
+                return if(resultSet.next()) resultSet.getString(1) else null
+            }
+        }
+    }
+
     fun updateDictionary(newWords: List<Word>, chatId: Long) {
-        val queryUpdateDictionary ="""
+        val queryUpdateDictionary = """
                 INSERT OR IGNORE INTO words (text, translate, user_id) 
                 VALUES (
                     ?, 
@@ -69,13 +119,13 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
             try {
                 connection.prepareStatement(queryUpdateDictionary).use { statement ->
                     newWords.forEach { word ->
-                            val text = word.originalWord
-                            val translate = word.translatedWord
-                            statement.setString(1, text)
-                            statement.setString(2, translate)
-                            statement.setLong(3, chatId)
-                            statement.addBatch()
-                        }
+                        val text = word.originalWord
+                        val translate = word.translatedWord
+                        statement.setString(1, text)
+                        statement.setString(2, translate)
+                        statement.setLong(3, chatId)
+                        statement.addBatch()
+                    }
                     statement.executeBatch()
                     connection.commit()
                 }
@@ -215,7 +265,8 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
     }
 
     fun getSize(chatId: Long): Int {
-        val queryGetCount = "SELECT COUNT(*) AS count FROM words WHERE user_id = (SELECT id FROM users WHERE chat_id = ?)"
+        val queryGetCount =
+            "SELECT COUNT(*) AS count FROM words WHERE user_id = (SELECT id FROM users WHERE chat_id = ?)"
         getConnection().use { connection ->
             connection.prepareStatement(queryGetCount).use { statement ->
                 statement.setLong(1, chatId)

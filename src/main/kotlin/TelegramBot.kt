@@ -79,12 +79,13 @@ private fun handleUpdate(
     }
 
     if (document != null) {
+        println()
         val jsonResponse = botService.getFileRequest(document.fileId, json)
         val response: GetFileResponse = json.decodeFromString(jsonResponse)
-        response.result?.let { response ->
-            botService.downloadFile(response.filePath, document.fileName)
+        response.result?.filePath?.let { filePath ->
+            botService.downloadFile(filePath, document.fileName)
         }
-        println(response)
+        println(jsonResponse)
         val newWords: MutableList<Word> = mutableListOf()
         File(document.fileName).forEachLine { line ->
             val parts = line.split("|")
@@ -112,7 +113,7 @@ private fun handleUpdate(
         CALLBACK_DATA_RESET_CLICKED == data -> {
             trainer.resetStatistics(chatId)
             botService.sendMessage(json, chatId, "Статистика успешно сброшена")
-            botService.sendMainMenu(json,chatId)
+            botService.sendMainMenu(json, chatId)
         }
 
         CALLBACK_DATA_ADD_WORDS == data -> {
@@ -159,6 +160,21 @@ private fun checkNextQuestionAndSend(
     if (question == null) {
         botService.sendMessage(json, chatId, "$HUNDRED_EMOJI Вы выучили все слова в базе или они отсутствуют")
     } else {
+        val originalWord = question.correctAnswer.originalWord
+        if (trainer.fileUserDictionary.isFileIdExists(originalWord)) {
+            println("ФАЙЛ ЕСТЬ БЕРЁМ ИЗ ТАБЛИЦЫ")
+            trainer.fileUserDictionary.getFileId(originalWord)?.let { fileId ->
+                println(fileId)
+                botService.sendPhotoByFileId(fileId = fileId, chatId = chatId, hasSpoiler = true, json = json)
+            }
+        } else {
+            println("ФАЙЛА НЕТ, ЗАГРУЖАЕМ")
+            val file = File("build/libs/$originalWord.png")
+            val sendPhotoResponse = botService.sendPhotoByFile(file, chatId, true)
+            val response: SendPhotoResponse = json.decodeFromString(sendPhotoResponse)
+            val photoFileId = response.result?.photos?.find() { it.width == 320 }?.fileId
+            if (photoFileId != null) trainer.fileUserDictionary.insertFileId(photoFileId, originalWord)
+        }
         botService.sendQuestion(json, chatId, question)
     }
     return question
@@ -171,6 +187,18 @@ data class Response(
 )
 
 @Serializable
+data class SendPhotoResponse(
+    val ok: Boolean,
+    val result: Message? = null,
+)
+
+@Serializable
+data class GetFileResponse(
+    val ok: Boolean,
+    val result: TelegramFile? = null,
+)
+
+@Serializable
 data class Update(
     @SerialName("update_id")
     val updateId: Long,
@@ -178,6 +206,20 @@ data class Update(
     val callbackQuery: CallbackQuery? = null,
     @SerialName("message")
     val message: Message? = null,
+)
+
+@Serializable
+data class Photos(
+    @SerialName("file_id")
+    val fileId: String,
+    @SerialName("file_unique_id")
+    val fileUniqueId: String,
+    @SerialName("file_size")
+    val fileSize: Int,
+    @SerialName("width")
+    val width: Int,
+    @SerialName("height")
+    val height: Int
 )
 
 @Serializable
@@ -199,25 +241,21 @@ data class Message(
     @SerialName("from")
     val from: From,
     @SerialName("document")
-    val document: Document? = null
-)
-
-@Serializable
-data class GetFileResponse(
-    val ok: Boolean,
-    val result: TelegramFile? = null
+    val document: Document? = null,
+    @SerialName("photo")
+    val photos: List<Photos>? = null
 )
 
 @Serializable
 data class TelegramFile(
     @SerialName("file_id")
-    val fileId: String,
+    val fileId: String? = null,
     @SerialName("file_unique_id")
-    val fileUniqueId: String,
+    val fileUniqueId: String? = null,
     @SerialName("file_size")
-    val fileSize: Long,
+    val fileSize: Long? = null,
     @SerialName("file_path")
-    val filePath: String
+    val filePath: String? = null,
 )
 
 @Serializable
