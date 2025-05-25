@@ -18,6 +18,7 @@ fun main(args: Array<String>) {
     val telegramBotService = TelegramBotService(botToken)
     val trainer = LearnWordsTrainer()
     val wordSessionState = mutableMapOf<Long, WordSessionState?>()
+    val chatAndMessagesIds = mutableMapOf<Long, Long>()
 
     val json = Json { ignoreUnknownKeys = true }
     var responseString: String
@@ -32,7 +33,7 @@ fun main(args: Array<String>) {
 
         val updates = response.updates.sortedBy { it.updateId }
         lastUpdateId = updates.last().updateId + 1
-        updates.forEach { handleUpdate(it, json, trainer, telegramBotService, wordSessionState) }
+        updates.forEach { handleUpdate(it, json, trainer, telegramBotService, wordSessionState, chatAndMessagesIds) }
     }
 }
 
@@ -41,22 +42,34 @@ private fun handleUpdate(
     json: Json,
     trainer: LearnWordsTrainer,
     botService: TelegramBotService,
-    wordSessionStateMap: MutableMap<Long, WordSessionState?>
+    wordSessionStateMap: MutableMap<Long, WordSessionState?>,
+    chatAndMessagesIds: MutableMap<Long, Long>,
 ) {
     val chatId = update.message?.chat?.chatId ?: update.callbackQuery?.message?.chat?.chatId ?: return
     val message = update.message?.text
+    println(message)
     val document = update.message?.document
     val data = update.callbackQuery?.data ?: ""
     val session = wordSessionStateMap[chatId]
     val username = update.message?.from?.username ?: update.callbackQuery?.from?.username ?: "unknown_user"
+    val messageId = chatAndMessagesIds[chatId] ?: 0L
+
     trainer.fileUserDictionary.insertUser(chatId, username)
 
-    if (session != null && data != CALLBACK_DATA_RETURN_CLICKED) {
+    if (message == "/start") {
+        if (wordSessionStateMap[chatId] != null) wordSessionStateMap[chatId] = null
+        botService.sendMainMenu(json, chatId)
+        println(chatId)
+    }
+
+    if (session != null && data != CALLBACK_DATA_RETURN_CLICKED && message != "/start") {
         when (session.waitingFor) {
             WaitingFor.ORIGINAL -> {
                 session.currentOriginal = message ?: ""
                 session.waitingFor = WaitingFor.TRANSLATION
-                botService.sendNewWordsRequest(json, chatId, "Введите перевод $RU_EMOJI:")
+
+                println(botService.editMessage(chatId, messageId, "Введите перевод $RU_EMOJI:", json))
+                //botService.sendNewWordsRequest(json, chatId, "Введите перевод $RU_EMOJI:")
             }
 
             WaitingFor.TRANSLATION -> {
@@ -66,16 +79,11 @@ private fun handleUpdate(
                 val translation = message ?: ""
                 val wordToAdd = Word(originalWord = original, translatedWord = translation)
                 trainer.fileUserDictionary.updateDictionary(listOf(wordToAdd), chatId)
-
-                botService.sendNewWordsRequest(json, chatId, "Введите оригинал $ENG_EMOJI:")
+                botService.editMessage(chatId, messageId, "Введите  оригинал $ENG_EMOJI:", json)
+                //botService.sendNewWordsRequest(json, chatId, "Введите оригинал $ENG_EMOJI:")
             }
         }
         return
-    }
-
-    if (message == "/start") {
-        botService.sendMainMenu(json, chatId)
-        println(chatId)
     }
 
     if (document != null) {
@@ -117,7 +125,9 @@ private fun handleUpdate(
         }
 
         CALLBACK_DATA_ADD_WORDS == data -> {
-            botService.sendNewWordsRequest(json, chatId, "Введите оригинал $ENG_EMOJI:")
+            val response = botService.sendNewWordsRequest(json, chatId, "Введите оригинал $ENG_EMOJI:")
+            println("Запрос слов - $response")
+            chatAndMessagesIds[chatId] = json.decodeFromString<MessageResponse>(response).result?.messageId ?: 0L
             wordSessionStateMap[chatId] = WordSessionState()
         }
 
@@ -170,10 +180,12 @@ private fun checkNextQuestionAndSend(
         } else {
             println("ФАЙЛА НЕТ, ЗАГРУЖАЕМ")
             val file = File("build/libs/$originalWord.png")
-            val sendPhotoResponse = botService.sendPhotoByFile(file, chatId, true)
-            val response: SendPhotoResponse = json.decodeFromString(sendPhotoResponse)
-            val photoFileId = response.result?.photos?.find() { it.width == 320 }?.fileId
-            if (photoFileId != null) trainer.fileUserDictionary.insertFileId(photoFileId, originalWord)
+            if (file.exists()) {
+                val sendPhotoResponse = botService.sendPhotoByFile(file, chatId, true)
+                val response: MessageResponse = json.decodeFromString(sendPhotoResponse)
+                val photoFileId = response.result?.photos?.find() { it.width == 320 }?.fileId
+                if (photoFileId != null) trainer.fileUserDictionary.insertFileId(photoFileId, originalWord)
+            }
         }
         botService.sendQuestion(json, chatId, question)
     }
@@ -187,7 +199,7 @@ data class Response(
 )
 
 @Serializable
-data class SendPhotoResponse(
+data class MessageResponse(
     val ok: Boolean,
     val result: Message? = null,
 )
@@ -236,6 +248,8 @@ data class CallbackQuery(
 data class Message(
     @SerialName("text")
     val text: String? = null,
+    @SerialName("message_id")
+    val messageId: Long,
     @SerialName("chat")
     val chat: Chat,
     @SerialName("from")

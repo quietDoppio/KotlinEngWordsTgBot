@@ -139,6 +139,31 @@ class TelegramBotService(private val botToken: String) {
         return response.body()
     }
 
+    fun editMessage(chatId: Long, messageId: Long, message: String, json: Json): String {
+        val editMessageUrl = "$botUrl/editMessageText"
+        val jsonBody = json.encodeToString(
+            EditMessageBody(
+                chatId = chatId,
+                messageId = messageId,
+                text = message,
+                replyMarkup = ReplyMarkup(
+                    listOf(
+                        listOf(
+                            InlineKeyboardButton(
+                                text = "меню",
+                                callbackData = CALLBACK_DATA_RETURN_CLICKED,
+                            )
+                        )
+                    )
+                )
+
+            )
+        )
+        val request: HttpRequest = makePostRequest(editMessageUrl, jsonBody)
+        val response: HttpResponse<String> = client.send(request, HttpResponse.BodyHandlers.ofString())
+        return response.body()
+    }
+
     fun downloadFile(filePath: String, fileName: String) {
         val urlFilePath = "${API_TELEGRAM_URL.dropLast(4)}/file/bot$botToken/$filePath"
         println(urlFilePath)
@@ -159,7 +184,7 @@ class TelegramBotService(private val botToken: String) {
         return response.body()
     }
 
-    fun sendPhotoByFileId(fileId: String, chatId: Long, hasSpoiler: Boolean = false ,json: Json): String{
+    fun sendPhotoByFileId(fileId: String, chatId: Long, hasSpoiler: Boolean = false, json: Json): String {
         val getFileBody = SendPhotoBody(chatId = chatId, fileId = fileId, hasSpoiler = hasSpoiler)
         val jsonBody = json.encodeToString(getFileBody)
 
@@ -167,6 +192,7 @@ class TelegramBotService(private val botToken: String) {
         val response = client.send(request, HttpResponse.BodyHandlers.ofString())
         return response.body()
     }
+
     fun sendPhotoByFile(file: File, chatId: Long, hasSpoiler: Boolean = false): String {
         val data: MutableMap<String, Any> = LinkedHashMap()
         data["chat_id"] = chatId.toString()
@@ -187,18 +213,21 @@ class TelegramBotService(private val botToken: String) {
         val byteArrays = ArrayList<ByteArray>()
         val separator = "--$boundary\r\nContent-Disposition: form-data; name=".toByteArray(StandardCharsets.UTF_8)
 
-        for (entry in data.entries){
+        for (entry in data.entries) {
             byteArrays.add(separator)
-            when(entry.value){
+            when (entry.value) {
                 is Path -> {
                     val path = entry.value as Path
                     val mimeType = Files.probeContentType(path)
                     byteArrays.add(
-                        "\"${entry.key}\"; filename=\"${path.fileName}\"\r\nContent-Type: $mimeType\r\n\r\n".toByteArray(StandardCharsets.UTF_8)
+                        "\"${entry.key}\"; filename=\"${path.fileName}\"\r\nContent-Type: $mimeType\r\n\r\n".toByteArray(
+                            StandardCharsets.UTF_8
+                        )
                     )
                     byteArrays.add(Files.readAllBytes(path))
                     byteArrays.add("\r\n".toByteArray(StandardCharsets.UTF_8))
                 }
+
                 else -> {
                     byteArrays.add("\"${entry.key}\"\r\n\r\n${entry.value}\r\n".toByteArray(StandardCharsets.UTF_8))
                 }
@@ -233,10 +262,23 @@ class TelegramBotService(private val botToken: String) {
     )
 
     @Serializable
+    data class EditMessageBody(
+        @SerialName("chat_id")
+        val chatId: Long,
+        @SerialName("message_id")
+        val messageId: Long,
+        @SerialName("text")
+        val text: String,
+        @SerialName("reply_markup")
+        val replyMarkup: ReplyMarkup
+    )
+
+    @Serializable
     data class GetFileBody(
         @SerialName("file_id")
         val fileId: String,
     )
+
     @Serializable
     data class SendPhotoBody(
         @SerialName("chat_id")
