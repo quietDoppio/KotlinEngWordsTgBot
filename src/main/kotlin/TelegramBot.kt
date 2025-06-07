@@ -171,7 +171,7 @@ private fun checkNextQuestionAndSend(
         botService.sendMessage(json, chatId, "$HUNDRED_EMOJI Вы выучили все слова в базе или они отсутствуют")
     } else {
         val originalWord = question.correctAnswer.originalWord
-        if (trainer.fileUserDictionary.isFileIdExists(originalWord)) {
+        if (trainer.fileUserDictionary.checkFileIdExistence(originalWord)) {
             println("ФАЙЛ ЕСТЬ БЕРЁМ ИЗ ТАБЛИЦЫ")
             trainer.fileUserDictionary.getFileId(originalWord)?.let { fileId ->
                 println(fileId)
@@ -183,8 +183,8 @@ private fun checkNextQuestionAndSend(
             if (file.exists()) {
                 val sendPhotoResponse = botService.sendPhotoByFile(file, chatId, true)
                 val response: MessageResponse = json.decodeFromString(sendPhotoResponse)
-                val photoFileId = response.result?.photos?.find() { it.width == 320 }?.fileId
-                if (photoFileId != null) trainer.fileUserDictionary.insertFileId(photoFileId, originalWord)
+                val photoFileId = response.result?.photos?.find { it.width == 320 }?.fileId
+                if (photoFileId != null) trainer.fileUserDictionary.updateFileId(photoFileId, originalWord)
             }
         }
         botService.sendQuestion(json, chatId, question)
