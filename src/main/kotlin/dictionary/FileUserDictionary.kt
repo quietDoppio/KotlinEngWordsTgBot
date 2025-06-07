@@ -103,16 +103,6 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
         }
     }
 
-    fun deleteData() {
-        getConnection().use { connection ->
-            connection.createStatement().use { statement ->
-                statement.executeUpdate(Queries.DELETE_FROM_USER_ANSWERS)
-                statement.executeUpdate(Queries.DELETE_FROM_USERS)
-                statement.executeUpdate(Queries.DELETE_FROM_WORDS)
-            }
-        }
-    }
-
     fun insertUser(chatId: Long, username: String) {
         getConnection().use { connection ->
             connection.prepareStatement(Queries.INSERT_USER).use { statement ->
@@ -168,15 +158,8 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
 
     fun getLearnedWords(chatId: Long): List<Word> {
         val learned = mutableListOf<Word>()
-        val querySelectLearned = """
-            SELECT w.text AS text, w.translate AS translate
-            FROM user_answers ua
-            JOIN users u ON ua.user_id = u.id
-            JOIN words w ON ua.word_id = w.id
-            WHERE u.chat_id = ? AND ua.correct_answer_count >= ?                 
-        """.trimIndent()
         getConnection().use { connection ->
-            connection.prepareStatement(querySelectLearned).use { statement ->
+            connection.prepareStatement(Queries.GET_LEARNED_WORDS).use { statement ->
                 statement.setLong(1, chatId)
                 statement.setInt(2, limit)
                 val resultSet = statement.executeQuery()
@@ -192,15 +175,8 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
 
     fun getUnlearnedWords(chatId: Long): List<Word> {
         val unlearned = mutableListOf<Word>()
-        val querySelectUnlearned = """
-            SELECT w.text AS text, w.translate AS translate
-            FROM user_answers ua
-            JOIN words w ON ua.word_id = w.id
-            JOIN users u ON ua.user_id = u.id
-            WHERE u.chat_id = ? AND ua.correct_answer_count < ?
-        """.trimIndent()
         getConnection().use { connection ->
-            connection.prepareStatement(querySelectUnlearned).use { statement ->
+            connection.prepareStatement(Queries.GET_UNLEARNED_WORDS).use { statement ->
                 statement.setLong(1, chatId)
                 statement.setInt(2, limit)
                 val resultSet = statement.executeQuery()
@@ -215,36 +191,20 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
     }
 
     fun setCorrectAnswersCount(word: String, correctAnswersCount: Int, chatId: Long) {
-        val querySetCount = """
-            UPDATE user_answers
-            SET correct_answer_count = ?
-            WHERE user_id = (SELECT id FROM users WHERE chat_id = ?)          
-            AND word_id = (
-                SELECT id FROM words
-                WHERE text = ?
-                AND user_id = (SELECT id FROM users WHERE chat_id = ?)        
-            )
-        """.trimIndent()
         getConnection().use { connection ->
-            connection.prepareStatement(querySetCount).use { statement ->
+            connection.prepareStatement(Queries.SET_CORRECT_ANSWERS_COUNT).use { statement ->
                 statement.setInt(1, correctAnswersCount)
                 statement.setLong(2, chatId)
                 statement.setString(3, word)
-                statement.setLong(4, chatId)
                 statement.executeUpdate()
             }
         }
     }
 
     fun resetUserProgress(chatId: Long): Boolean {
-        val queryReset = """
-            UPDATE user_answers 
-            SET correct_answer_count = 0
-            WHERE user_id = (SELECT id FROM users WHERE chat_id = ?)
-        """.trimIndent()
         return try {
             getConnection().use { connection ->
-                connection.prepareStatement(queryReset).use { statement ->
+                connection.prepareStatement(Queries.RESET_USER_PROGRESS).use { statement ->
                     statement.setLong(1, chatId)
                     statement.executeUpdate()
                 }
@@ -256,22 +216,6 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
     }
 
     fun insertTestData(words: File) {
-        val queryInsertUser = "INSERT OR REPLACE INTO users (chat_id, user_name) VALUES (?, ?)"
-        val queryInsertWords = """
-            INSERT OR REPLACE INTO words (user_id, text, translate)
-             VALUES (
-                (SELECT id FROM users WHERE chat_id = ?), ?, ?
-             )
-            
-        """.trimIndent()
-        val queryInsertUserAnswers = """
-            INSERT OR REPLACE INTO user_answers (user_id, word_id, correct_answer_count)
-            VALUES (
-            (SELECT id FROM users WHERE chat_id = ?), 
-            (SELECT id FROM words WHERE text = ?),
-             ?
-           )
-        """.trimIndent()
         val linesTriple = words.readLines().mapNotNull { line ->
             val parts = line.split("|")
             if (parts.size == 3) {
@@ -287,21 +231,20 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
         getConnection().use { connection ->
             connection.autoCommit = false
             try {
-                connection.prepareStatement(queryInsertUser).use { statement ->
+                connection.prepareStatement(Queries.INSERT_USER).use { statement ->
                     statement.setLong(1, 0L)
                     statement.setString(2, "testUser")
                     statement.executeUpdate()
                 }
-                connection.prepareStatement(queryInsertWords).use { statement ->
+                connection.prepareStatement(Queries.INSERT_WORD).use { statement ->
                     linesTriple.forEach { t ->
-                        statement.setLong(1, 0L)
-                        statement.setString(2, t.first)
-                        statement.setString(3, t.second)
+                        statement.setString(1, t.first)
+                        statement.setString(2, t.second)
                         statement.addBatch()
                     }
                     statement.executeBatch()
                 }
-                connection.prepareStatement(queryInsertUserAnswers).use { statement ->
+                connection.prepareStatement(Queries.TEST_INSERT_USER_ANSWERS).use { statement ->
                     linesTriple.forEach { t ->
                         statement.setLong(1, 0L)
                         statement.setString(2, t.first)
@@ -316,6 +259,16 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
                 throw e
             } finally {
                 connection.autoCommit = true
+            }
+        }
+    }
+
+    fun deleteData() {
+        getConnection().use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate(Queries.DELETE_FROM_USER_ANSWERS)
+                statement.executeUpdate(Queries.DELETE_FROM_USERS)
+                statement.executeUpdate(Queries.DELETE_FROM_WORDS)
             }
         }
     }

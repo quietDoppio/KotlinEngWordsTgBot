@@ -36,9 +36,6 @@ object Queries {
     const val UPDATE_FILE_ID = "UPDATE words SET file_id = ? WHERE text = ?"
     const val CHECK_FILE_ID_EXISTENCE = "SELECT EXISTS (SELECT 1 FROM words WHERE text = ? AND file_id IS NOT NULL)"
     const val GET_FILE_ID = "SELECT file_id FROM words WHERE text = ?"
-    const val DELETE_FROM_WORDS = "DELETE FROM words"
-    const val DELETE_FROM_USERS = "DELETE FROM users"
-    const val DELETE_FROM_USER_ANSWERS = "DELETE FROM user_answers"
     const val GET_PERSONAL_WORDS_COUNT =
         "SELECT COUNT(*) FROM user_answers WHERE user_id = (SELECT id FROM users WHERE chat_id = ?)"
     const val GET_NUM_OF_UNLEARNED_WORDS = """
@@ -58,5 +55,41 @@ object Queries {
             FROM user_answers
             WHERE user_id = (SELECT id FROM users WHERE chat_id = ?)
             AND word_id = (SELECT id FROM words WHERE text = ?)
+        """
+    const val GET_LEARNED_WORDS = """
+            SELECT w.text AS text, w.translate AS translate
+            FROM user_answers ua
+            JOIN users u ON u.id = ua.user_id
+            JOIN words w ON w.ud = ua.word_id 
+            WHERE u.chat_id = ? AND ua.correct_answer_count >= ?   
+        """
+    const val GET_UNLEARNED_WORDS = """
+            SELECT w.text AS text, w.translate AS translate
+            FROM user_answers ua
+            JOIN words w ON ua.word_id = w.id
+            JOIN users u ON ua.user_id = u.id
+            WHERE u.chat_id = ? AND ua.correct_answer_count < ?
+        """
+    const val SET_CORRECT_ANSWERS_COUNT = """
+            UPDATE user_answers
+            SET correct_answer_count = ?
+            WHERE user_id = (SELECT id FROM users WHERE chat_id = ?)          
+            AND word_id = (SELECT id FROM words WHERE text = ?        )
+        """
+    const val RESET_USER_PROGRESS = """
+           UPDATE user_answers 
+           SET correct_answer_count = 0
+           WHERE user_id = (SELECT id FROM users WHERE chat_id = ?)
+       """
+    const val DELETE_FROM_WORDS = "DELETE FROM words"
+    const val DELETE_FROM_USERS = "DELETE FROM users"
+    const val DELETE_FROM_USER_ANSWERS = "DELETE FROM user_answers"
+    const val TEST_INSERT_USER_ANSWERS = """
+        INSERT OR REPLACE INTO user_answers (user_id, word_id, correct_answer_count)
+            VALUES (
+            (SELECT id FROM users WHERE chat_id = ?), 
+            (SELECT id FROM words WHERE text = ?),
+             ?
+           )
         """
 }
