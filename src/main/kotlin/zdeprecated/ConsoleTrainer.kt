@@ -1,10 +1,14 @@
-package dictionary
+package zdeprecated
+
+import bot.LearnWordsTrainer
+import bot.Question
+import bot.Word
 
 const val STATISTIC_TO_SEND = "Выучено %d из %d слов | %d%%"
 
 fun main() {
     val trainer = try {
-        LearnWordsTrainer()
+       // LearnWordsTrainer(UserDictionaryRepository("", 0))
     } catch (e: Exception) {
         println("Невозможно загрузить словарь")
         return
@@ -14,14 +18,14 @@ fun main() {
         println("Меню:\n1 - Учить слова\n2 - Статистика\n0 - Выход")
         val userInput = readln()
         when (userInput) {
-            "1" -> startLearning(trainer)
+            //"1" -> startLearning(trainer)
             "2" -> {
-                val statistic = trainer.getStatistics(148)
+            //   val statistic = trainer.getStatistics(148)
                 println(
                     STATISTIC_TO_SEND.format(
-                        statistic.learnedWordsCount,
-                        statistic.totalWordsCount,
-                        statistic.learnedWordsPercent
+                    //    statistic.learnedWordsCount,
+                    //    statistic.totalWordsCount,
+                    //    statistic.learnedWordsPercent
                     )
                 )
             }
