@@ -4,6 +4,8 @@ import java.io.File
 import java.sql.Connection
 import java.sql.DriverManager
 
+const val NOT_FOUND_ERROR_MESSAGE = "%s not found in the table"
+
 class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
 
     private fun getConnection(): Connection {
@@ -53,52 +55,34 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
             connection.prepareStatement(Queries.GET_FILE_ID).use { statement ->
                 statement.setString(1, originalWord)
                 val resultSet = statement.executeQuery()
-                return if (resultSet.next()) resultSet.getString(1) else null
+                return if (resultSet.next()) resultSet.getString("fileId") else null
             }
         }
     }
 
     fun updateDictionary(newWords: List<Word>, chatId: Long) {
-        getConnection().use { connection ->
-            connection.autoCommit = false
-            try {
-                connection.prepareStatement(Queries.INSERT_WORD).use { statement ->
-                    newWords.forEach { word ->
-                        statement.setString(1, word.originalWord)
-                        statement.setString(2, word.translatedWord)
-                        statement.addBatch()
-                    }
-                    statement.executeBatch()
-                    connection.commit()
+        useTransaction { conn ->
+            conn.prepareStatement(Queries.INSERT_WORD).use { statement ->
+                newWords.forEach { word ->
+                    statement.setString(1, word.originalWord)
+                    statement.setString(2, word.translatedWord)
+                    statement.addBatch()
                 }
-                insertUserAnswers(chatId, newWords)
-            } catch (e: Exception) {
-                connection.rollback()
-                println(e.message)
-            } finally {
-                connection.autoCommit = true
+                statement.executeBatch()
             }
         }
+        insertUserAnswers(chatId, newWords)
     }
 
     private fun insertUserAnswers(chatId: Long, words: List<Word>) {
-        getConnection().use { connection ->
-            try {
-                connection.autoCommit = false
-                connection.prepareStatement(Queries.INSERT_USER_ANSWERS).use { statement ->
-                    words.forEach { word ->
-                        statement.setLong(1, chatId)
-                        statement.setString(2, word.originalWord)
-                        statement.addBatch()
-                    }
-                    statement.executeBatch()
-                    connection.commit()
+        useTransaction { conn ->
+            conn.prepareStatement(Queries.INSERT_USER_ANSWERS).use { statement ->
+                words.forEach { word ->
+                    statement.setLong(1, chatId)
+                    statement.setString(2, word.originalWord)
+                    statement.addBatch()
                 }
-            } catch (e: Exception) {
-                connection.rollback()
-                println(e.message)
-            } finally {
-                connection.autoCommit = true
+                statement.executeBatch()
             }
         }
     }
@@ -115,43 +99,83 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
 
     fun getCurrentAnswerCount(word: String, chatId: Long): Int {
         getConnection().use { connection ->
-            connection.prepareStatement(Queries.GET_CURRENT_ANSWER_COUNT).use { statement ->
-                statement.setLong(1, chatId)
-                statement.setString(2, word)
-                val resultSet = statement.executeQuery()
-                return if (resultSet.next()) resultSet.getInt(1) else 0
+            return try {
+                connection.prepareStatement(Queries.GET_CURRENT_ANSWER_COUNT).use { statement ->
+                    statement.setLong(
+                        1, getUserId(chatId) ?: error(
+                            String.format(NOT_FOUND_ERROR_MESSAGE, "user_id")
+                        )
+                    )
+                    statement.setLong(
+                        2, getWordId(word) ?: error(
+                            String.format(NOT_FOUND_ERROR_MESSAGE, "word_id")
+                        )
+                    )
+                    val resultSet = statement.executeQuery()
+                    if (resultSet.next()) resultSet.getInt("count") else 0
+                }
+            } catch (e: Exception) {
+                println(e.message)
+                0
             }
         }
     }
 
     fun getSize(chatId: Long): Int {
         getConnection().use { connection ->
-            connection.prepareStatement(Queries.GET_PERSONAL_WORDS_COUNT).use { statement ->
-                statement.setLong(1, chatId)
-                val resultSet = statement.executeQuery()
-                return if (resultSet.next()) resultSet.getInt(1) else 0
+            return try {
+                connection.prepareStatement(Queries.GET_PERSONAL_WORDS_COUNT).use { statement ->
+                    statement.setLong(
+                        1, getUserId(chatId) ?: error(
+                            String.format(NOT_FOUND_ERROR_MESSAGE, "user_id")
+                        )
+                    )
+                    val resultSet = statement.executeQuery()
+                    if (resultSet.next()) resultSet.getInt("count") else 0
+                }
+            } catch (e: Exception) {
+                println(e.message)
+                0
             }
         }
     }
 
     fun getNumOfUnlearnedWords(chatId: Long): Int {
         getConnection().use { connection ->
-            connection.prepareStatement(Queries.GET_NUM_OF_UNLEARNED_WORDS).use { statement ->
-                statement.setLong(1, chatId)
-                statement.setInt(2, limit)
-                val resultSet = statement.executeQuery()
-                return if (resultSet.next()) resultSet.getInt(1) else 0
+            return try {
+                connection.prepareStatement(Queries.GET_NUM_OF_UNLEARNED_WORDS).use { statement ->
+                    statement.setLong(
+                        1, getUserId(chatId) ?: error(
+                            String.format(NOT_FOUND_ERROR_MESSAGE, "user_id")
+                        )
+                    )
+                    statement.setInt(2, limit)
+                    val resultSet = statement.executeQuery()
+                    if (resultSet.next()) resultSet.getInt("count") else 0
+                }
+            } catch (e: Exception) {
+                println(e.message)
+                0
             }
         }
     }
 
     fun getNumOfLearnedWords(chatId: Long): Int {
         getConnection().use { connection ->
-            connection.prepareStatement(Queries.GET_NUM_OF_LEARNED_WORDS).use { statement ->
-                statement.setLong(1, chatId)
-                statement.setInt(2, limit)
-                val resultSet = statement.executeQuery()
-                return if (resultSet.next()) resultSet.getInt(1) else 0
+            return try {
+                connection.prepareStatement(Queries.GET_NUM_OF_LEARNED_WORDS).use { statement ->
+                    statement.setLong(
+                        1, getUserId(chatId) ?: error(
+                            String.format(NOT_FOUND_ERROR_MESSAGE, "user_id")
+                        )
+                    )
+                    statement.setInt(2, limit)
+                    val resultSet = statement.executeQuery()
+                    if (resultSet.next()) resultSet.getInt("count") else 0
+                }
+            } catch (e: Exception) {
+                println(e.message)
+                0
             }
         }
     }
@@ -190,29 +214,52 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
         return unlearned
     }
 
-    fun setCorrectAnswersCount(word: String, correctAnswersCount: Int, chatId: Long) {
+    fun setCorrectAnswersCount(word: String, correctAnswersCount: Int, chatId: Long): Boolean {
         getConnection().use { connection ->
-            connection.prepareStatement(Queries.SET_CORRECT_ANSWERS_COUNT).use { statement ->
-                statement.setInt(1, correctAnswersCount)
-                statement.setLong(2, chatId)
-                statement.setString(3, word)
-                statement.executeUpdate()
+            return try {
+                connection.prepareStatement(Queries.SET_CORRECT_ANSWERS_COUNT).use { statement ->
+                    statement.setInt(1, correctAnswersCount)
+                    statement.setLong(
+                        2, getUserId(chatId) ?: error(
+                            String.format(NOT_FOUND_ERROR_MESSAGE, "user_id")
+                        )
+                    )
+                    statement.setLong(
+                        3,
+                        getWordId(word) ?: error(
+                            String.format(NOT_FOUND_ERROR_MESSAGE, "word_id"),
+                        )
+                    )
+                    statement.executeUpdate()
+                    true
+                }
+            } catch (e: Exception) {
+                println(e.message)
+                false
             }
         }
     }
 
     fun resetUserProgress(chatId: Long): Boolean {
-        return try {
-            getConnection().use { connection ->
+        getConnection().use { connection ->
+            return try {
                 connection.prepareStatement(Queries.RESET_USER_PROGRESS).use { statement ->
-                    statement.setLong(1, chatId)
+                    statement.setLong(
+                        1,
+                        getUserId(chatId) ?: error(
+                            String.format(NOT_FOUND_ERROR_MESSAGE, "user_id")
+                        )
+                    )
                     statement.executeUpdate()
+                    true
                 }
+            } catch (e: Exception) {
+                println(e.message)
+                false
             }
-            true
-        } catch (e: Exception) {
-            false
         }
+
+
     }
 
     fun insertTestData(words: File) {
@@ -228,37 +275,28 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
             } else null
         }
 
-        getConnection().use { connection ->
-            connection.autoCommit = false
-            try {
-                connection.prepareStatement(Queries.INSERT_USER).use { statement ->
+        useTransaction { conn ->
+            conn.prepareStatement(Queries.INSERT_USER).use { statement ->
+                statement.setLong(1, 0L)
+                statement.setString(2, "testUser")
+                statement.executeUpdate()
+            }
+            conn.prepareStatement(Queries.INSERT_WORD).use { statement ->
+                linesTriple.forEach { t ->
+                    statement.setString(1, t.first)
+                    statement.setString(2, t.second)
+                    statement.addBatch()
+                }
+                statement.executeBatch()
+            }
+            conn.prepareStatement(Queries.TEST_INSERT_USER_ANSWERS).use { statement ->
+                linesTriple.forEach { t ->
                     statement.setLong(1, 0L)
-                    statement.setString(2, "testUser")
-                    statement.executeUpdate()
+                    statement.setString(2, t.first)
+                    statement.setInt(3, t.third)
+                    statement.addBatch()
                 }
-                connection.prepareStatement(Queries.INSERT_WORD).use { statement ->
-                    linesTriple.forEach { t ->
-                        statement.setString(1, t.first)
-                        statement.setString(2, t.second)
-                        statement.addBatch()
-                    }
-                    statement.executeBatch()
-                }
-                connection.prepareStatement(Queries.TEST_INSERT_USER_ANSWERS).use { statement ->
-                    linesTriple.forEach { t ->
-                        statement.setLong(1, 0L)
-                        statement.setString(2, t.first)
-                        statement.setInt(3, t.third)
-                        statement.addBatch()
-                    }
-                    statement.executeBatch()
-                }
-                connection.commit()
-            } catch (e: Exception) {
-                connection.rollback()
-                throw e
-            } finally {
-                connection.autoCommit = true
+                statement.executeBatch()
             }
         }
     }
@@ -273,4 +311,38 @@ class FileUserDictionary(val limit: Int, val jdbcUrl: String) {
         }
     }
 
+    private fun useTransaction(block: (Connection) -> Unit) {
+        getConnection().use { connection ->
+            connection.autoCommit = false
+            try {
+                block(connection)
+                connection.commit()
+            } catch (e: Exception) {
+                println(e)
+                connection.rollback()
+            } finally {
+                connection.autoCommit = true
+            }
+        }
+    }
+
+    private fun getUserId(chatId: Long): Long? {
+        getConnection().use { connection ->
+            connection.prepareStatement(Queries.GET_USER_ID).use { statement ->
+                statement.setLong(1, chatId)
+                val resultSet = statement.executeQuery()
+                return if (resultSet.next()) resultSet.getLong(1) else null
+            }
+        }
+    }
+
+    private fun getWordId(originalWord: String): Long? {
+        getConnection().use { connection ->
+            connection.prepareStatement(Queries.GET_WORD_ID).use { statement ->
+                statement.setString(1, originalWord)
+                val resultSet = statement.executeQuery()
+                return if (resultSet.next()) resultSet.getLong(1) else null
+            }
+        }
+    }
 }
