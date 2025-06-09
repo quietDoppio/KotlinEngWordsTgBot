@@ -1,6 +1,6 @@
 import dictionary.LearnWordsTrainer
 import dictionary.Question
-import dictionary.STATISTIC_TO_SEND
+import deprecated.STATISTIC_TO_SEND
 import dictionary.Word
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -54,7 +54,7 @@ private fun handleUpdate(
     val username = update.message?.from?.username ?: update.callbackQuery?.from?.username ?: "unknown_user"
     val messageId = chatAndMessagesIds[chatId] ?: 0L
 
-    trainer.fileUserDictionary.insertUser(chatId, username)
+    trainer.dataService.insertUser(chatId, username)
 
     if (message == "/start") {
         if (wordSessionStateMap[chatId] != null) wordSessionStateMap[chatId] = null
@@ -78,7 +78,7 @@ private fun handleUpdate(
                 val original = session.currentOriginal
                 val translation = message ?: ""
                 val wordToAdd = Word(originalWord = original, translatedWord = translation)
-                trainer.fileUserDictionary.updateDictionary(listOf(wordToAdd), chatId)
+                trainer.dataService.insertWords(listOf(wordToAdd), chatId)
                 botService.editMessage(chatId, messageId, "Введите  оригинал $ENG_EMOJI:", json)
                 //botService.sendNewWordsRequest(json, chatId, "Введите оригинал $ENG_EMOJI:")
             }
@@ -107,7 +107,7 @@ private fun handleUpdate(
                 File("words.txt").appendText(correctLine)
             }
         }
-        trainer.fileUserDictionary.updateDictionary(newWords, chatId)
+        trainer.dataService.insertWords(newWords, chatId)
 
     }
 
@@ -171,9 +171,9 @@ private fun checkNextQuestionAndSend(
         botService.sendMessage(json, chatId, "$HUNDRED_EMOJI Вы выучили все слова в базе или они отсутствуют")
     } else {
         val originalWord = question.correctAnswer.originalWord
-        if (trainer.fileUserDictionary.checkFileIdExistence(originalWord)) {
+        if (trainer.dataService.checkFileIdExistence(originalWord)) {
             println("ФАЙЛ ЕСТЬ БЕРЁМ ИЗ ТАБЛИЦЫ")
-            trainer.fileUserDictionary.getFileId(originalWord)?.let { fileId ->
+            trainer.dataService.getFileId(originalWord)?.let { fileId ->
                 println(fileId)
                 botService.sendPhotoByFileId(fileId = fileId, chatId = chatId, hasSpoiler = true, json = json)
             }
@@ -184,7 +184,7 @@ private fun checkNextQuestionAndSend(
                 val sendPhotoResponse = botService.sendPhotoByFile(file, chatId, true)
                 val response: MessageResponse = json.decodeFromString(sendPhotoResponse)
                 val photoFileId = response.result?.photos?.find { it.width == 320 }?.fileId
-                if (photoFileId != null) trainer.fileUserDictionary.updateFileId(photoFileId, originalWord)
+                if (photoFileId != null) trainer.dataService.updateFileId(photoFileId, originalWord)
             }
         }
         botService.sendQuestion(json, chatId, question)

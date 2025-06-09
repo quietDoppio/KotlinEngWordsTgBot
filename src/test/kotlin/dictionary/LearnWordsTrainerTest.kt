@@ -18,7 +18,7 @@ class LearnWordsTrainerTest {
 
     @BeforeEach
     fun setup() {
-        trainer.fileUserDictionary.deleteData()
+        trainer.dataService.deleteData()
         if (trainer.questionWordsCount != 4) trainer.questionWordsCount = 4
     }
 
@@ -41,7 +41,7 @@ class LearnWordsTrainerTest {
             wide|широкий|3
         """.trimIndent()
         val file = createTestTempFile(text)
-        trainer.fileUserDictionary.insertTestData(file)
+        trainer.dataService.insertTestData(file)
         kotlin.test.assertEquals(
             Statistic(learnedWordsCount = 4, totalWordsCount = 7, learnedWordsPercent = 57),
             trainer.getStatistics(0L),
@@ -56,7 +56,7 @@ class LearnWordsTrainerTest {
             |
         """.trimIndent()
         val corruptedFile = createTestTempFile(text)
-        trainer.fileUserDictionary.insertTestData(corruptedFile)
+        trainer.dataService.insertTestData(corruptedFile)
         kotlin.test.assertEquals(
             Statistic(learnedWordsCount = 0, totalWordsCount = 0, learnedWordsPercent = 0), trainer.getStatistics(0L)
         )
@@ -76,8 +76,8 @@ class LearnWordsTrainerTest {
         """.trimIndent()
         val unlearnedWordsFile = createTestTempFile(text)
 
-        trainer.fileUserDictionary.insertTestData(unlearnedWordsFile)
-        val numOfUnlearnedWords = trainer.fileUserDictionary.getNumOfUnlearnedWords(0L)
+        trainer.dataService.insertTestData(unlearnedWordsFile)
+        val numOfUnlearnedWords = trainer.dataService.getNumOfUnlearnedWords(0L)
         val question = trainer.getNextQuestion(0L)
 
         kotlin.test.assertEquals(5, numOfUnlearnedWords, "unlearned words")
@@ -101,10 +101,10 @@ class LearnWordsTrainerTest {
             """.trimIndent()
         val learnedWordsFile = createTestTempFile(text)
 
-        trainer.fileUserDictionary.insertTestData(learnedWordsFile)
+        trainer.dataService.insertTestData(learnedWordsFile)
         val question = trainer.getNextQuestion(0L)
-        val numOfWords = trainer.fileUserDictionary.getSize(0L)
-        val numOfLearnedWords = trainer.fileUserDictionary.getNumOfLearnedWords(0L)
+        val numOfWords = trainer.dataService.getWordsCount(0L)
+        val numOfLearnedWords = trainer.dataService.getNumOfLearnedWords(0L)
         kotlin.test.assertNull(question, "question is null")
         kotlin.test.assertEquals(numOfWords, numOfLearnedWords, "not every word is learned")
     }
@@ -119,7 +119,7 @@ class LearnWordsTrainerTest {
         """.trimIndent()
         val checkAnswerFile = createTestTempFile(text)
 
-        trainer.fileUserDictionary.insertTestData(checkAnswerFile)
+        trainer.dataService.insertTestData(checkAnswerFile)
         val question = trainer.getNextQuestion(0L)
         kotlin.test.assertNotNull(question, "question is null")
 
@@ -135,7 +135,7 @@ class LearnWordsTrainerTest {
         )
         kotlin.test.assertEquals(
             1,
-            trainer.fileUserDictionary.getCurrentAnswerCount(
+            trainer.dataService.getCurrentAnswerCount(
                 correctAnswer.originalWord, 0L
             ),
             "correctAnswerCount isnt increased"
@@ -154,7 +154,7 @@ class LearnWordsTrainerTest {
             """.trimIndent()
         val checkAnswerFile = createTestTempFile(text)
 
-        trainer.fileUserDictionary.insertTestData(checkAnswerFile)
+        trainer.dataService.insertTestData(checkAnswerFile)
         val question = trainer.getNextQuestion(0L)
         question?.let {
             val correctAnswer = it.correctAnswer
@@ -177,10 +177,10 @@ class LearnWordsTrainerTest {
             """.trimIndent()
         val file = createTestTempFile(text)
 
-        trainer.fileUserDictionary.insertTestData(file)
+        trainer.dataService.insertTestData(file)
 
-        kotlin.test.assertEquals(2, trainer.fileUserDictionary.getNumOfLearnedWords(0L))
+        kotlin.test.assertEquals(2, trainer.dataService.getNumOfLearnedWords(0L))
         kotlin.test.assertEquals(true, trainer.resetStatistics(0L))
-        kotlin.test.assertEquals(0, trainer.fileUserDictionary.getNumOfLearnedWords(0L))
+        kotlin.test.assertEquals(0, trainer.dataService.getNumOfLearnedWords(0L))
     }
 }

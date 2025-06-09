@@ -1,4 +1,8 @@
-package dictionary
+package deprecated
+
+import dictionary.LearnWordsTrainer
+import dictionary.Question
+import dictionary.Word
 
 const val STATISTIC_TO_SEND = "Выучено %d из %d слов | %d%%"
 
