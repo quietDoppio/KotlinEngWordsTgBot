@@ -1,9 +1,9 @@
 package deprecated
 
 import database.main.UserDictionaryRepository
-import dictionary.LearnWordsTrainer
-import dictionary.Question
-import dictionary.Word
+import bot.LearnWordsTrainer
+import bot.Question
+import bot.Word
 
 const val STATISTIC_TO_SEND = "Выучено %d из %d слов | %d%%"
 

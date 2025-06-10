@@ -1,6 +1,11 @@
 package bot
 
-import dictionary.Question
+import bot.serializableClasses.EditMessageBody
+import bot.serializableClasses.GetFileBody
+import bot.serializableClasses.InlineKeyboardButton
+import bot.serializableClasses.ReplyMarkup
+import bot.serializableClasses.SendMessageBody
+import bot.serializableClasses.SendPhotoBody
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.InputStream
@@ -13,7 +18,6 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Random
-import serializableClasses.*
 
 class TelegramBotService(private val botToken: String) {
 

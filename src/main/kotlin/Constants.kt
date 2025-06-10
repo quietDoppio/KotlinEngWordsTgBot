@@ -1,5 +1,3 @@
-package bot
-
 object Constants {
     const val EMOJI_CHECKMARK = "\u2705"
     const val EMOJI_CROSSMARK = "\u274C"
@@ -15,4 +13,6 @@ object Constants {
     const val CALLBACK_DATA_RETURN_CLICKED = "bot.CALLBACK_DATA_RETURN_CLICKED"
     const val CALLBACK_DATA_ADD_WORDS = "bot.CALLBACK_DATA_ADD_WORDS"
     const val CALLBACK_DATA_ANSWER_PREFIX = "answer_"
+
+    const val JDBC_URL = "jdbc:sqlite:"
 }

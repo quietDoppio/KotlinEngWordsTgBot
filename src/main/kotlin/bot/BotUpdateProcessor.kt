@@ -1,10 +1,11 @@
 package bot
 
+import bot.serializableClasses.GetFileResponse
+import bot.serializableClasses.MessageResponse
+import bot.serializableClasses.Response
+import bot.serializableClasses.Update
 import deprecated.STATISTIC_TO_SEND
-import dictionary.LearnWordsTrainer
-import dictionary.Word
 import kotlinx.serialization.json.Json
-import serializableClasses.*
 import java.io.File
 
 class BotUpdateProcessor(

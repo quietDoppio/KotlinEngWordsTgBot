@@ -1,5 +1,7 @@
 package dictionary
 
+import bot.LearnWordsTrainer
+import bot.Statistic
 import database.test.TestDictionaryRepository
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -14,7 +16,12 @@ class LearnWordsTrainerTest {
         @BeforeAll
         @JvmStatic
         fun initTrainer() {
-            trainer = LearnWordsTrainer(TestDictionaryRepository("jdbc:sqlite:testDatabase.db", "test_user", 0L))
+            trainer =
+                LearnWordsTrainer(
+                    TestDictionaryRepository(
+                        "${Constants.JDBC_URL}testDatabase.db", "test_user", 0L
+                    )
+                )
             repository = trainer.repository as TestDictionaryRepository
             repository.initialize()
         }
@@ -140,7 +147,7 @@ class LearnWordsTrainerTest {
         kotlin.test.assertEquals(
             1,
             repository.getUsersCurrentAnswerCount(
-                correctAnswer.originalWord, 0L
+                0L, correctAnswer.originalWord
             ),
             "correctAnswerCount isnt increased"
         )

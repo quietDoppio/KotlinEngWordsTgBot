@@ -1,7 +1,7 @@
 package database.main
 
-import database.Queries
-import dictionary.Word
+import Queries
+import bot.Word
 import java.sql.Connection
 
 interface UserRepository {

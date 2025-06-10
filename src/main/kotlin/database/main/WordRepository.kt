@@ -1,6 +1,6 @@
 package database.main
 
-import database.Queries
+import Queries
 import java.sql.Connection
 
 interface WordRepository {

@@ -1,5 +1,3 @@
-package database
-
 object Queries {
     const val CREATE_TABLE_WORDS = """
         CREATE TABLE IF NOT EXISTS words (

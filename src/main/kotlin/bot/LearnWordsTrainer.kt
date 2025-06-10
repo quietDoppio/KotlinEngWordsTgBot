@@ -1,9 +1,8 @@
-package dictionary
+package bot
 
 import database.main.UserDictionaryRepository
 
 const val HUNDRED_PERCENT = 100
-const val JDBC_URL = "jdbc:sqlite:Database.db"
 
 data class Word(
     val originalWord: String,

@@ -1,9 +1,8 @@
 package database.main
 
-import database.main.WordRepository
 import database.BaseJdbcRepository
-import database.Queries
-import dictionary.Word
+import Queries
+import bot.Word
 import java.sql.Connection
 
 open class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJdbcRepository(jdbcUrl),

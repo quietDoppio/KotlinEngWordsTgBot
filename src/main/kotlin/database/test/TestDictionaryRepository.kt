@@ -1,8 +1,8 @@
 package database.test
 
-import database.Queries
+import Queries
 import database.main.UserDictionaryRepository
-import dictionary.Word
+import bot.Word
 import java.io.File
 import kotlin.use
 
