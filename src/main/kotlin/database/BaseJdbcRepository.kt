@@ -1,6 +1,5 @@
 package database
 
-import SafeExecutor
 import java.sql.Connection
 import java.sql.DriverManager
 
@@ -17,5 +16,15 @@ abstract class BaseJdbcRepository(private val jdbcUrl: String) : SafeExecutor {
 
     fun initialize() {
         getConnection().use { connection -> createTables(connection) }
+    }
+
+    fun clearData() {
+        getConnection().use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate(Queries.DELETE_FROM_USER_ANSWERS)
+                statement.executeUpdate(Queries.DELETE_FROM_USERS)
+                statement.executeUpdate(Queries.DELETE_FROM_WORDS)
+            }
+        }
     }
 }

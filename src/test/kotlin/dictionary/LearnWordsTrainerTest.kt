@@ -1,5 +1,6 @@
 package dictionary
 
+import database.test.TestDictionaryRepository
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -8,21 +9,24 @@ import java.io.File
 class LearnWordsTrainerTest {
     private companion object {
         private lateinit var trainer: LearnWordsTrainer
-        
+        private lateinit var repository: TestDictionaryRepository
+
         @BeforeAll
         @JvmStatic
         fun initTrainer() {
-            trainer = LearnWordsTrainer(jdbcUrl = "jdbc:sqlite:testDatabase.db")
+            trainer = LearnWordsTrainer(TestDictionaryRepository("jdbc:sqlite:testDatabase.db", "test_user", 0L))
+            repository = trainer.repository as TestDictionaryRepository
+            repository.initialize()
         }
     }
 
     @BeforeEach
     fun setup() {
-        trainer.dataService.deleteData()
+        repository.clearData()
         if (trainer.questionWordsCount != 4) trainer.questionWordsCount = 4
     }
 
-   private fun createTestTempFile(text: String): File {
+    private fun createTestTempFile(text: String): File {
         return kotlin.io.path.createTempFile(prefix = "tempFile", suffix = ".txt").toFile().apply {
             writeText(text)
             deleteOnExit()
@@ -41,7 +45,7 @@ class LearnWordsTrainerTest {
             wide|широкий|3
         """.trimIndent()
         val file = createTestTempFile(text)
-        trainer.dataService.insertTestData(file)
+        repository.insertTestData(file)
         kotlin.test.assertEquals(
             Statistic(learnedWordsCount = 4, totalWordsCount = 7, learnedWordsPercent = 57),
             trainer.getStatistics(0L),
@@ -56,7 +60,7 @@ class LearnWordsTrainerTest {
             |
         """.trimIndent()
         val corruptedFile = createTestTempFile(text)
-        trainer.dataService.insertTestData(corruptedFile)
+        repository.insertTestData(corruptedFile)
         kotlin.test.assertEquals(
             Statistic(learnedWordsCount = 0, totalWordsCount = 0, learnedWordsPercent = 0), trainer.getStatistics(0L)
         )
@@ -76,8 +80,8 @@ class LearnWordsTrainerTest {
         """.trimIndent()
         val unlearnedWordsFile = createTestTempFile(text)
 
-        trainer.dataService.insertTestData(unlearnedWordsFile)
-        val numOfUnlearnedWords = trainer.dataService.getNumOfUnlearnedWords(0L)
+        repository.insertTestData(unlearnedWordsFile)
+        val numOfUnlearnedWords = repository.getUsersNumOfUnlearnedWords(0L)
         val question = trainer.getNextQuestion(0L)
 
         kotlin.test.assertEquals(5, numOfUnlearnedWords, "unlearned words")
@@ -101,10 +105,10 @@ class LearnWordsTrainerTest {
             """.trimIndent()
         val learnedWordsFile = createTestTempFile(text)
 
-        trainer.dataService.insertTestData(learnedWordsFile)
+        repository.insertTestData(learnedWordsFile)
         val question = trainer.getNextQuestion(0L)
-        val numOfWords = trainer.dataService.getWordsCount(0L)
-        val numOfLearnedWords = trainer.dataService.getNumOfLearnedWords(0L)
+        val numOfWords = repository.getUsersWordsCount(0L)
+        val numOfLearnedWords = repository.getUsersNumOfLearnedWords(0L)
         kotlin.test.assertNull(question, "question is null")
         kotlin.test.assertEquals(numOfWords, numOfLearnedWords, "not every word is learned")
     }
@@ -119,7 +123,7 @@ class LearnWordsTrainerTest {
         """.trimIndent()
         val checkAnswerFile = createTestTempFile(text)
 
-        trainer.dataService.insertTestData(checkAnswerFile)
+        repository.insertTestData(checkAnswerFile)
         val question = trainer.getNextQuestion(0L)
         kotlin.test.assertNotNull(question, "question is null")
 
@@ -135,7 +139,7 @@ class LearnWordsTrainerTest {
         )
         kotlin.test.assertEquals(
             1,
-            trainer.dataService.getCurrentAnswerCount(
+            repository.getUsersCurrentAnswerCount(
                 correctAnswer.originalWord, 0L
             ),
             "correctAnswerCount isnt increased"
@@ -154,7 +158,7 @@ class LearnWordsTrainerTest {
             """.trimIndent()
         val checkAnswerFile = createTestTempFile(text)
 
-        trainer.dataService.insertTestData(checkAnswerFile)
+        repository.insertTestData(checkAnswerFile)
         val question = trainer.getNextQuestion(0L)
         question?.let {
             val correctAnswer = it.correctAnswer
@@ -177,10 +181,10 @@ class LearnWordsTrainerTest {
             """.trimIndent()
         val file = createTestTempFile(text)
 
-        trainer.dataService.insertTestData(file)
+        repository.insertTestData(file)
 
-        kotlin.test.assertEquals(2, trainer.dataService.getNumOfLearnedWords(0L))
+        kotlin.test.assertEquals(2, repository.getUsersNumOfLearnedWords(0L))
         kotlin.test.assertEquals(true, trainer.resetStatistics(0L))
-        kotlin.test.assertEquals(0, trainer.dataService.getNumOfLearnedWords(0L))
+        kotlin.test.assertEquals(0, repository.getUsersNumOfLearnedWords(0L))
     }
 }

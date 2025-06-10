@@ -1,13 +1,13 @@
 package database.main
 
+import database.main.WordRepository
 import database.BaseJdbcRepository
 import database.Queries
 import dictionary.Word
-import java.io.File
 import java.sql.Connection
 
-class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJdbcRepository(jdbcUrl),
-    DictionaryRepository {
+open class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJdbcRepository(jdbcUrl),
+    UserRepository, WordRepository {
 
     override fun createTables(connection: Connection) {
         connection.createStatement().use { statement ->
@@ -17,11 +17,11 @@ class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJd
         }
     }
 
-    override fun insertWords(newWords: List<Word>, chatId: Long) {
+    override fun addWords(chatId: Long, words: List<Word>) {
         getConnection().use { connection ->
             useTransaction(connection) {
                 connection.prepareStatement(Queries.INSERT_WORD).use { statement ->
-                    newWords.forEach { word ->
+                    words.forEach { word ->
                         statement.setString(1, word.originalWord)
                         statement.setString(2, word.translatedWord)
                         statement.addBatch()
@@ -32,7 +32,7 @@ class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJd
         }
     }
 
-    override fun insertUser(username: String, chatId: Long) {
+    override fun addUser(chatId: Long, username: String) {
         getConnection().use { connection ->
             connection.prepareStatement(Queries.INSERT_USER).use { statement ->
                 statement.setLong(1, chatId)
@@ -42,7 +42,7 @@ class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJd
         }
     }
 
-    override fun insertUserAnswers(words: List<Word>, chatId: Long) {
+    override fun addUserAnswers(chatId: Long, words: List<Word>) {
         getConnection().use { connection ->
             connection.prepareStatement(Queries.INSERT_USER_ANSWERS).use { statement ->
                 val userId = getUserId(connection, chatId)
@@ -57,7 +57,7 @@ class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJd
         }
     }
 
-    override fun getWordsCount(chatId: Long): Int {
+    override fun getUsersWordsCount(chatId: Long): Int {
         return tryOr(0) {
             getConnection().use { connection ->
                 val userId = getUserId(connection, chatId)
@@ -70,7 +70,7 @@ class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJd
         }
     }
 
-    override fun getNumOfUnlearnedWords(chatId: Long): Int {
+    override fun getUsersNumOfUnlearnedWords(chatId: Long): Int {
         return tryOr(0) {
             getConnection().use { connection ->
                 val userId = getUserId(connection, chatId)
@@ -84,7 +84,7 @@ class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJd
         }
     }
 
-    override fun getNumOfLearnedWords(chatId: Long): Int {
+    override fun getUsersNumOfLearnedWords(chatId: Long): Int {
         return tryOr(0) {
             getConnection().use { connection ->
                 val userId = getUserId(connection, chatId)
@@ -98,7 +98,7 @@ class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJd
         }
     }
 
-    override fun getLearnedWords(chatId: Long): List<Word> {
+    override fun getUsersLearnedWords(chatId: Long): List<Word> {
         val learned = mutableListOf<Word>()
         getConnection().use { connection ->
             connection.prepareStatement(Queries.GET_LEARNED_WORDS).use { statement ->
@@ -115,7 +115,7 @@ class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJd
         return learned
     }
 
-    override fun getUnlearnedWords(chatId: Long): List<Word> {
+    override fun getUsersUnlearnedWords(chatId: Long): List<Word> {
         val unlearned = mutableListOf<Word>()
         getConnection().use { connection ->
             connection.prepareStatement(Queries.GET_UNLEARNED_WORDS).use { statement ->
@@ -132,7 +132,7 @@ class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJd
         return unlearned
     }
 
-    override fun getCurrentAnswerCount(word: String, chatId: Long): Int {
+    override fun getUsersCurrentAnswerCount(chatId: Long, word: String): Int {
         return tryOr(0) {
             getConnection().use { connection ->
                 connection.prepareStatement(Queries.GET_CURRENT_ANSWER_COUNT).use { statement ->
@@ -145,7 +145,7 @@ class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJd
         }
     }
 
-    override fun setCorrectAnswersCount(originalWord: String, correctAnswersCount: Int, chatId: Long): Boolean {
+    override fun setUsersCorrectAnswersCount(chatId: Long, originalWord: String, correctAnswersCount: Int): Boolean {
         return tryOr(false) {
             getConnection().use { connection ->
                 val userId = getUserId(connection, chatId)
@@ -203,23 +203,4 @@ class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) : BaseJd
             }
         }
     }
-
-    override fun getUserId(connection: Connection, chatId: Long): Long {
-        connection.prepareStatement(Queries.GET_USER_ID).use { statement ->
-            statement.setLong(1, chatId)
-            val resultSet = statement.executeQuery()
-            return if (resultSet.next()) resultSet.getLong(1)
-            else throw IllegalStateException("User id with chatId=$chatId not found")
-        }
-    }
-
-    override fun getWordId(connection: Connection, originalWord: String): Long {
-        connection.prepareStatement(Queries.GET_WORD_ID).use { statement ->
-            statement.setString(1, originalWord)
-            val resultSet = statement.executeQuery()
-            return if (resultSet.next()) resultSet.getLong(1)
-            else throw IllegalStateException("Word id from word=$originalWord not found")
-        }
-    }
-
 }

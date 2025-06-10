@@ -1,6 +1,5 @@
 package dictionary
 
-import database.BaseJdbcRepository
 import database.main.UserDictionaryRepository
 
 const val HUNDRED_PERCENT = 100
@@ -9,6 +8,7 @@ const val JDBC_URL = "jdbc:sqlite:Database.db"
 data class Word(
     val originalWord: String,
     val translatedWord: String,
+    val correctAnswersCount: Int = 0,
 )
 
 data class Question(
@@ -23,15 +23,17 @@ data class Statistic(
 )
 
 class LearnWordsTrainer(
-    learnedWordsLimit: Int = 3, var questionWordsCount: Int = 4, val jdbcUrl: String = JDBC_URL
+    val repository: UserDictionaryRepository,
+    var questionWordsCount: Int = 4,
 ) {
-    val dataService: BaseJdbcRepository = UserDictionaryRepository(jdbcUrl, learnedWordsLimit)
-
+    init {
+        repository.initialize()
+    }
     private var _question: Question? = null
     val question get() = _question
 
     fun getNextQuestion(chatId: Long): Question? {
-        val unlearnedList = dataService.getUnlearnedWords(chatId).shuffled().take(questionWordsCount)
+        val unlearnedList = repository.getUsersUnlearnedWords(chatId).shuffled().take(questionWordsCount)
 
         if (unlearnedList.isEmpty()) {
             return null
@@ -39,7 +41,7 @@ class LearnWordsTrainer(
             val correctAnswer = unlearnedList.firstOrNull { it != question?.correctAnswer } ?: unlearnedList.random()
             val variants = if (unlearnedList.size < questionWordsCount) {
                 buildList {
-                    val learnedWords = dataService.getLearnedWords(chatId).shuffled()
+                    val learnedWords = repository.getUsersLearnedWords(chatId).shuffled()
                         .take(questionWordsCount - unlearnedList.size)
                     addAll(unlearnedList + learnedWords)
                 }.shuffled()
@@ -59,9 +61,9 @@ class LearnWordsTrainer(
             val isRightAnswer = selectedWord.originalWord == it.correctAnswer.originalWord
             if (isRightAnswer) {
                 val newCorrectAnswerCount =
-                    dataService.getCurrentAnswerCount(selectedWord.originalWord, chatId) + 1
+                    repository.getUsersCurrentAnswerCount(chatId, selectedWord.originalWord) + 1
 
-                dataService.setCorrectAnswersCount(
+                repository.setUsersCorrectAnswersCount(
                     chatId, selectedWord.originalWord, newCorrectAnswerCount,
                 )
             }
@@ -70,8 +72,8 @@ class LearnWordsTrainer(
     }
 
     fun getStatistics(chatId: Long): Statistic {
-        val totalWordsCount = dataService.getWordsCount(chatId)
-        val learnedWordsCount = dataService.getNumOfLearnedWords(chatId)
+        val totalWordsCount = repository.getUsersWordsCount(chatId)
+        val learnedWordsCount = repository.getUsersNumOfLearnedWords(chatId)
         val learnedWordsPercent =
             if (learnedWordsCount != 0) ((learnedWordsCount * HUNDRED_PERCENT) / totalWordsCount) else 0
 
@@ -82,7 +84,5 @@ class LearnWordsTrainer(
         )
     }
 
-    fun resetStatistics(chatId: Long): Boolean = dataService.resetUserProgress(chatId)
+    fun resetStatistics(chatId: Long): Boolean = repository.resetUserProgress(chatId)
 }
-
-

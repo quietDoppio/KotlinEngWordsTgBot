@@ -1,0 +1,18 @@
+package bot
+
+object Constants {
+    const val EMOJI_CHECKMARK = "\u2705"
+    const val EMOJI_CROSSMARK = "\u274C"
+    const val EMOJI_HUNDRED = "\uD83D\uDCAF"
+    const val EMOJI_ENG_FLAG = "\uD83C\uDDFA\uD83C\uDDF8"
+    const val EMOJI_RU_FLAG = "\uD83C\uDDF7\uD83C\uDDFA"
+    const val EMOJI_DIGITS = "\uFE0F\u20E3"
+
+    const val API_TELEGRAM_URL = "https://api.telegram.org/bot"
+    const val CALLBACK_DATA_STATISTICS_CLICKED = "DATA_CALLBACK_STATISTICS_CLICKED"
+    const val CALLBACK_DATA_START_LEARNING_CLICKED = "DATA_CALLBACK_START_LEARNING_CLICKED"
+    const val CALLBACK_DATA_RESET_CLICKED = "bot.CALLBACK_DATA_RESET_CLICKED"
+    const val CALLBACK_DATA_RETURN_CLICKED = "bot.CALLBACK_DATA_RETURN_CLICKED"
+    const val CALLBACK_DATA_ADD_WORDS = "bot.CALLBACK_DATA_ADD_WORDS"
+    const val CALLBACK_DATA_ANSWER_PREFIX = "answer_"
+}

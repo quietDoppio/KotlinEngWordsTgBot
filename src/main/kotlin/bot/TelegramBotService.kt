@@ -1,6 +1,6 @@
+package bot
+
 import dictionary.Question
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.InputStream
@@ -13,20 +13,12 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Random
-
-const val API_TELEGRAM_URL = "https://api.telegram.org/bot"
-const val CALLBACK_DATA_STATISTICS_CLICKED = "DATA_CALLBACK_STATISTICS_CLICKED"
-const val CALLBACK_DATA_START_LEARNING_CLICKED = "DATA_CALLBACK_START_LEARNING_CLICKED"
-const val CALLBACK_DATA_RESET_CLICKED = "CALLBACK_DATA_RESET_CLICKED"
-const val CALLBACK_DATA_RETURN_CLICKED = "CALLBACK_DATA_RETURN_CLICKED"
-const val CALLBACK_DATA_ADD_WORDS = "CALLBACK_DATA_ADD_WORDS"
-const val CALLBACK_DATA_ANSWER_PREFIX = "answer_"
-const val EMOJI_DIGITS = "\uFE0F\u20E3"
+import serializableClasses.*
 
 class TelegramBotService(private val botToken: String) {
 
-    private val numsEmojiList = ('1'..'4').map { it -> "$it$EMOJI_DIGITS" }
-    private val botUrl = API_TELEGRAM_URL + botToken
+    private val numsEmojiList = ('1'..'4').map { it -> "$it${Constants.EMOJI_DIGITS}" }
+    private val botUrl = Constants.API_TELEGRAM_URL + botToken
     private val client: HttpClient = HttpClient.newBuilder().build()
 
 
@@ -60,7 +52,7 @@ class TelegramBotService(private val botToken: String) {
                     listOf(
                         InlineKeyboardButton(
                             text = "меню",
-                            callbackData = CALLBACK_DATA_RETURN_CLICKED,
+                            callbackData = Constants.CALLBACK_DATA_RETURN_CLICKED,
                         )
                     )
                 )
@@ -86,13 +78,22 @@ class TelegramBotService(private val botToken: String) {
                     listOf(
                         InlineKeyboardButton(
                             text = "Изучение слов",
-                            callbackData = CALLBACK_DATA_START_LEARNING_CLICKED
+                            callbackData = Constants.CALLBACK_DATA_START_LEARNING_CLICKED
                         ),
-                        InlineKeyboardButton(text = "Статистика", callbackData = CALLBACK_DATA_STATISTICS_CLICKED)
+                        InlineKeyboardButton(
+                            text = "Статистика",
+                            callbackData = Constants.CALLBACK_DATA_STATISTICS_CLICKED
+                        )
                     ),
                     listOf(
-                        InlineKeyboardButton(text = "Обновить словарь", callbackData = CALLBACK_DATA_ADD_WORDS),
-                        InlineKeyboardButton(text = "Сбросить статистику", callbackData = CALLBACK_DATA_RESET_CLICKED),
+                        InlineKeyboardButton(
+                            text = "Обновить словарь",
+                            callbackData = Constants.CALLBACK_DATA_ADD_WORDS
+                        ),
+                        InlineKeyboardButton(
+                            text = "Сбросить статистику",
+                            callbackData = Constants.CALLBACK_DATA_RESET_CLICKED
+                        ),
                     )
                 )
             )
@@ -120,13 +121,13 @@ class TelegramBotService(private val botToken: String) {
                     question.variants.mapIndexed { index, word ->
                         InlineKeyboardButton(
                             text = numsEmojiList[index],
-                            callbackData = "$CALLBACK_DATA_ANSWER_PREFIX$index"
+                            callbackData = "${Constants.CALLBACK_DATA_ANSWER_PREFIX}$index"
                         )
                     },
                     listOf(
                         InlineKeyboardButton(
                             text = "Вернуться в меню",
-                            callbackData = CALLBACK_DATA_RETURN_CLICKED
+                            callbackData = Constants.CALLBACK_DATA_RETURN_CLICKED
                         )
                     )
                 )
@@ -151,7 +152,7 @@ class TelegramBotService(private val botToken: String) {
                         listOf(
                             InlineKeyboardButton(
                                 text = "меню",
-                                callbackData = CALLBACK_DATA_RETURN_CLICKED,
+                                callbackData = Constants.CALLBACK_DATA_RETURN_CLICKED,
                             )
                         )
                     )
@@ -165,7 +166,7 @@ class TelegramBotService(private val botToken: String) {
     }
 
     fun downloadFile(filePath: String, fileName: String) {
-        val urlFilePath = "${API_TELEGRAM_URL.dropLast(4)}/file/bot$botToken/$filePath"
+        val urlFilePath = "${Constants.API_TELEGRAM_URL.dropLast(4)}/file/bot$botToken/$filePath"
         println(urlFilePath)
         val request: HttpRequest = makeGetRequest(urlFilePath)
         val response: HttpResponse<InputStream> = client.send(request, HttpResponse.BodyHandlers.ofInputStream())
@@ -250,56 +251,4 @@ class TelegramBotService(private val botToken: String) {
             .POST(HttpRequest.BodyPublishers.ofString(jsonBodyString))
             .build()
     }
-
-    @Serializable
-    data class SendMessageBody(
-        @SerialName("chat_id")
-        val chatId: Long,
-        @SerialName("text")
-        val text: String,
-        @SerialName("reply_markup")
-        val replyMarkup: ReplyMarkup? = null,
-    )
-
-    @Serializable
-    data class EditMessageBody(
-        @SerialName("chat_id")
-        val chatId: Long,
-        @SerialName("message_id")
-        val messageId: Long,
-        @SerialName("text")
-        val text: String,
-        @SerialName("reply_markup")
-        val replyMarkup: ReplyMarkup
-    )
-
-    @Serializable
-    data class GetFileBody(
-        @SerialName("file_id")
-        val fileId: String,
-    )
-
-    @Serializable
-    data class SendPhotoBody(
-        @SerialName("chat_id")
-        val chatId: Long?,
-        @SerialName("photo")
-        val fileId: String,
-        @SerialName("has_spoiler")
-        val hasSpoiler: Boolean
-    )
-
-    @Serializable
-    data class ReplyMarkup(
-        @SerialName("inline_keyboard")
-        val inlineKeyboard: List<List<InlineKeyboardButton>>
-    )
-
-    @Serializable
-    data class InlineKeyboardButton(
-        @SerialName("text")
-        val text: String,
-        @SerialName("callback_data")
-        val callbackData: String
-    )
 }
