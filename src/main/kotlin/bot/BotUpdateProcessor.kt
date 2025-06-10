@@ -46,7 +46,7 @@ class BotUpdateProcessor(
             println(chatId)
         }
 
-        if (session != null && data != CALLBACK_DATA_RETURN_CLICKED && message != "/start") {
+        if (session != null && data != Constants.CALLBACK_DATA_RETURN_CLICKED && message != "/start") {
             when (session.waitingFor) {
                 WaitingFor.ORIGINAL -> {
                     session.currentOriginal = message ?: ""
@@ -99,26 +99,26 @@ class BotUpdateProcessor(
         }
 
         when {
-            CALLBACK_DATA_START_LEARNING_CLICKED == data -> checkNextQuestionAndSend(trainer, botService, json, chatId)
-            CALLBACK_DATA_RETURN_CLICKED == data -> {
+            Constants.CALLBACK_DATA_START_LEARNING_CLICKED == data -> checkNextQuestionAndSend(chatId)
+            Constants.CALLBACK_DATA_RETURN_CLICKED == data -> {
                 botService.sendMainMenu(json, chatId)
                 if (wordSessionState[chatId] != null) wordSessionState[chatId] = null
             }
 
-            CALLBACK_DATA_RESET_CLICKED == data -> {
+            Constants.CALLBACK_DATA_RESET_CLICKED == data -> {
                 trainer.resetStatistics(chatId)
                 botService.sendMessage(json, chatId, "Статистика успешно сброшена")
                 botService.sendMainMenu(json, chatId)
             }
 
-            CALLBACK_DATA_ADD_WORDS == data -> {
+            Constants.CALLBACK_DATA_ADD_WORDS == data -> {
                 val response = botService.sendNewWordsRequest(json, chatId, "Введите оригинал ${Constants.EMOJI_ENG_FLAG}:")
                 println("Запрос слов - $response")
                 chatAndMessagesIds[chatId] = json.decodeFromString<MessageResponse>(response).result?.messageId ?: 0L
                 wordSessionState[chatId] = WordSessionState()
             }
 
-            CALLBACK_DATA_STATISTICS_CLICKED == data -> {
+            Constants.CALLBACK_DATA_STATISTICS_CLICKED == data -> {
                 val statistics = trainer.getStatistics(chatId)
                 botService.sendMessage(
                     json,
@@ -131,8 +131,8 @@ class BotUpdateProcessor(
                 )
             }
 
-            data.startsWith(CALLBACK_DATA_ANSWER_PREFIX) -> {
-                val indexOfClicked = data.substringAfter(CALLBACK_DATA_ANSWER_PREFIX).toInt()
+            data.startsWith(Constants.CALLBACK_DATA_ANSWER_PREFIX) -> {
+                val indexOfClicked = data.substringAfter(Constants.CALLBACK_DATA_ANSWER_PREFIX).toInt()
                 val isRightAnswer = trainer.checkAnswer(indexOfClicked, chatId)
 
                 if (isRightAnswer) botService.sendMessage(json, chatId, "${Constants.EMOJI_CHECKMARK} Верно!")
@@ -141,19 +141,14 @@ class BotUpdateProcessor(
                     chatId,
                     "${Constants.EMOJI_CROSSMARK} Не верно! ${trainer.question?.correctAnswer?.originalWord} - ${trainer.question?.correctAnswer?.translatedWord}"
                 )
-                checkNextQuestionAndSend(trainer, botService, json, chatId)
+                checkNextQuestionAndSend(chatId)
             }
 
         }
     }
 
-    private fun checkNextQuestionAndSend(
-        trainer: LearnWordsTrainer?,
-        botService: TelegramBotService,
-        json: Json,
-        chatId: Long
-    ) {
-        val question = trainer?.getNextQuestion(chatId)
+    private fun checkNextQuestionAndSend(chatId: Long) {
+        val question = trainer.getNextQuestion(chatId)
         if (question == null) {
             botService.sendMessage(
                 json,
