@@ -1,29 +1,28 @@
 package database
 
+import NEW.ConnectionProvider
+import NEW.DataCleaner
+import NEW.TableInitializer
 import java.sql.Connection
-import java.sql.DriverManager
 
-abstract class BaseJdbcRepository(private val jdbcUrl: String) : SafeExecutor {
-    protected fun getConnection(): Connection {
-        return DriverManager.getConnection(jdbcUrl).also { conn ->
-            conn.createStatement().use { stmt ->
-                stmt.execute("PRAGMA foreign_keys = ON")
-            }
-        }
+abstract class BaseJdbcRepository(protected val connectionProvider: ConnectionProvider) :
+    TableInitializer, DataCleaner, SafeExecutor {
+    protected inline fun <T> withConnection(block: (Connection) -> T): T =
+        connectionProvider.getConnection().use(block)
+
+    protected abstract fun prepareTables(connection: Connection)
+
+    override fun initTables() {
+        withConnection { connection -> prepareTables(connection) }
     }
 
-    protected abstract fun createTables(connection: Connection)
-
-    fun initialize() {
-        getConnection().use { connection -> createTables(connection) }
-    }
-
-    fun clearData() {
-        getConnection().use { connection ->
+    override fun clearData(tableNames: List<String>) {
+        withConnection { connection ->
             connection.createStatement().use { statement ->
-                statement.executeUpdate(Queries.DELETE_FROM_USER_ANSWERS)
-                statement.executeUpdate(Queries.DELETE_FROM_USERS)
-                statement.executeUpdate(Queries.DELETE_FROM_WORDS)
+                tableNames.forEach { name ->
+                    require(name.matches(Regex("[A-Za-z0-9_]+")))
+                    statement.executeUpdate("${Queries.DELETE_FROM} $name")
+                }
             }
         }
     }

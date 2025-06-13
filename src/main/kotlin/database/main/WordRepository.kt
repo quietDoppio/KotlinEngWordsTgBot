@@ -1,9 +1,11 @@
 package database.main
 
 import Queries
+import bot.Word
 import java.sql.Connection
 
 interface WordRepository {
+    fun insertWords(words: List<Word>) {TODO()}
     fun getFileId(originalWord: String): String?
     fun updateFileId(fileId: String, originalWord: String)
     fun checkFileIdExistence(originalWord: String): Boolean

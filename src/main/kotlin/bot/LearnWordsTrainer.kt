@@ -26,7 +26,7 @@ class LearnWordsTrainer(
     var questionWordsCount: Int = 4,
 ) {
     init {
-        repository.initialize()
+        repository.initTables()
     }
     private var _question: Question? = null
     val question get() = _question

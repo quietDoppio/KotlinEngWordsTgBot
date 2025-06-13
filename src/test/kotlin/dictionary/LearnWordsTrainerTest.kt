@@ -23,7 +23,7 @@ class LearnWordsTrainerTest {
                     )
                 )
             repository = trainer.repository as TestDictionaryRepository
-            repository.initialize()
+            repository.initTables()
         }
     }
 

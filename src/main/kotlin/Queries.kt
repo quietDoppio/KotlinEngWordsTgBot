@@ -60,9 +60,7 @@ object Queries {
         "UPDATE user_answers SET correct_answer_count = ? WHERE user_id = ? AND word_id = ?"
     const val RESET_USER_PROGRESS =
         "UPDATE user_answers SET correct_answer_count = 0 WHERE user_id = ?"
-    const val DELETE_FROM_WORDS = "DELETE FROM words"
-    const val DELETE_FROM_USERS = "DELETE FROM users"
-    const val DELETE_FROM_USER_ANSWERS = "DELETE FROM user_answers"
+    const val DELETE_FROM = "DELETE FROM ?"
     const val TEST_INSERT_USER_ANSWERS = """
         INSERT OR REPLACE INTO user_answers (user_id, word_id, correct_answer_count)
         VALUES ( (SELECT id FROM users WHERE chat_id = ?), (SELECT id FROM words WHERE text = ?), (?) )
