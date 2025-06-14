@@ -5,9 +5,9 @@ import bot.Word
 import java.sql.Connection
 
 interface UserRepository {
-    fun addWords(chatId: Long, words: List<Word>)
-    fun addUser(chatId: Long, username: String)
-    fun addUserAnswers(chatId: Long, words: List<Word>)
+    fun addWordsToUser(chatId: Long, words: List<Word>)
+    fun addUserAnswersToUser(chatId: Long, words: List<Word>)
+    fun addNewUser(chatId: Long, username: String)
     fun resetUserProgress(chatId: Long): Boolean
     fun getUsersWordsCount(chatId: Long): Int
     fun getUsersNumOfLearnedWords(chatId: Long): Int

@@ -26,16 +26,16 @@ class TestDictionaryRepository(
                 }
             }
         }
-        getConnection().use { connection ->
-            addUser(chatId, username)
-            addWords(chatId, wordsList)
-            addUserAnswers(chatId, wordsList)
+        withConnection { connection ->
+            addNewUser(chatId, username)
+            addWordsToUser(chatId, wordsList)
+            addUserAnswersToUser(chatId, wordsList)
 
         }
     }
 
-    override fun addUserAnswers(chatId: Long, words: List<Word>) {
-        getConnection().use { connection ->
+    override fun addUserAnswersToUser(chatId: Long, words: List<Word>) {
+        withConnection { connection ->
             useTransaction(connection) {
                 connection.prepareStatement(Queries.TEST_INSERT_USER_ANSWERS).use { statement ->
                     words.forEach { w ->

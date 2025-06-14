@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Response(
     @SerialName("result")
-    val updates: List<Update>
+    val updates: List<BotUpdate>
 )
 
 @Serializable
@@ -22,7 +22,7 @@ data class GetFileResponse(
 )
 
 @Serializable
-data class Update(
+data class BotUpdate(
     @SerialName("update_id")
     val updateId: Long,
     @SerialName("callback_query")

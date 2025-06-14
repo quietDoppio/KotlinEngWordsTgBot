@@ -19,7 +19,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Random
 
-class TelegramBotService(private val botToken: String) {
+class TelegramApiService(private val botToken: String) {
 
     private val numsEmojiList = ('1'..'4').map { it -> "$it${Constants.EMOJI_DIGITS}" }
     private val botUrl = Constants.API_TELEGRAM_URL + botToken
@@ -169,8 +169,8 @@ class TelegramBotService(private val botToken: String) {
         return response.body()
     }
 
-    fun downloadFile(filePath: String, fileName: String) {
-        val urlFilePath = "${Constants.API_TELEGRAM_URL.dropLast(4)}/file/bot$botToken/$filePath"
+    fun downloadFile(apiFilePath: String, fileName: String) {
+        val urlFilePath = "${Constants.API_TELEGRAM_URL.dropLast(4)}/file/bot$botToken/$apiFilePath"
         println(urlFilePath)
         val request: HttpRequest = makeGetRequest(urlFilePath)
         val response: HttpResponse<InputStream> = client.send(request, HttpResponse.BodyHandlers.ofInputStream())

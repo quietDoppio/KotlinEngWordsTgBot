@@ -1,36 +1,41 @@
 package bot
 
+import NEW.BotRequestSender
+import NEW.FilesHelper
+
+import NEW.UpdateSource
+import NEW.UserCommandProcessor
 import bot.serializableClasses.GetFileResponse
 import bot.serializableClasses.MessageResponse
-import bot.serializableClasses.Response
-import bot.serializableClasses.Update
+import bot.serializableClasses.BotUpdate
 import deprecated.STATISTIC_TO_SEND
 import kotlinx.serialization.json.Json
 import java.io.File
 
 class BotUpdateProcessor(
-    private val botService: TelegramBotService,
+    private val updatesSource: UpdateSource,
+    private val requestSender: BotRequestSender,
+    private val filesHelper: FilesHelper,
     private val trainer: LearnWordsTrainer,
-    private val json: Json = Json { ignoreUnknownKeys = true }
-) {
+    private val json: Json = Json { ignoreUnknownKeys = true },
+) : UserCommandProcessor {
     val wordSessionState = mutableMapOf<Long, WordSessionState?>()
     val chatAndMessagesIds = mutableMapOf<Long, Long>()
     var lastUpdateId: Long = 0
 
-    fun run() {
+    override fun run() {
         while (true) {
             Thread.sleep(2000)
-            val responseString = botService.getUpdates(lastUpdateId)
-            val response = json.decodeFromString<Response>(responseString)
-            if (response.updates.isEmpty()) continue
+            val updates = updatesSource.getUpdates(lastUpdateId)
+            if (updates.isEmpty()) continue
 
-            val updates = response.updates.sortedBy { it.updateId }
-            lastUpdateId = updates.last().updateId + 1
+            val sortedUpdates = updates.sortedBy { it.updateId }
+            lastUpdateId = sortedUpdates.last().updateId + 1
             updates.forEach { handleUpdate(it) }
         }
     }
 
-    private fun handleUpdate(update: Update) {
+    override fun handleUpdate(update: BotUpdate) {
         val chatId = update.message?.chat?.chatId ?: update.callbackQuery?.message?.chat?.chatId ?: return
         val message = update.message?.text
         val document = update.message?.document
@@ -39,11 +44,11 @@ class BotUpdateProcessor(
         val username = update.message?.from?.username ?: update.callbackQuery?.from?.username ?: "unknown_user"
         val messageId = chatAndMessagesIds[chatId] ?: 0L
 
-        trainer.repository.addUser(chatId, username)
+        trainer.repository.addNewUser(chatId, username)
 
         if (message == "/start") {
             if (wordSessionState[chatId] != null) wordSessionState[chatId] = null
-            botService.sendMainMenu(json, chatId)
+            requestSender.sendMainMenu(chatId)
             println(chatId)
         }
 
@@ -53,7 +58,11 @@ class BotUpdateProcessor(
                     session.currentOriginal = message ?: ""
                     session.waitingFor = WaitingFor.TRANSLATION
 
-                    println(botService.editMessage(chatId, messageId, "Введите перевод ${Constants.EMOJI_RU_FLAG}:", json))
+                    println(
+                        requestSender.editMessage(
+                            chatId, messageId, "Введите перевод ${Constants.EMOJI_RU_FLAG}:",
+                        )
+                    )
                     //botService.sendNewWordsRequest(json, chatId, "Введите перевод $bot.RU_EMOJI:")
                 }
 
@@ -63,11 +72,9 @@ class BotUpdateProcessor(
                     val original = session.currentOriginal
                     val translation = message ?: ""
                     val wordToAdd = Word(originalWord = original, translatedWord = translation)
-                    trainer.repository.addWords(chatId, listOf(wordToAdd))
-                    trainer.repository.addUserAnswers(chatId, listOf(wordToAdd))
-                    botService.editMessage(
-                        chatId, messageId, "Введите  оригинал ${Constants}:", json
-                    )
+                    trainer.repository.addWordsToUser(chatId, listOf(wordToAdd))
+                    trainer.repository.addUserAnswersToUser(chatId, listOf(wordToAdd))
+                    requestSender.editMessage(chatId, messageId, "Введите  оригинал ${Constants}:")
                     //botService.sendNewWordsRequest(json, chatId, "Введите оригинал $bot.ENG_EMOJI:")
                 }
             }
@@ -76,10 +83,10 @@ class BotUpdateProcessor(
 
         if (document != null) {
             println()
-            val jsonResponse = botService.getFileRequest(document.fileId, json)
+            val jsonResponse = filesHelper.getFileRequest(document.fileId)
             val response: GetFileResponse = json.decodeFromString(jsonResponse)
             response.result?.filePath?.let { filePath ->
-                botService.downloadFile(filePath, document.fileName)
+                filesHelper.downloadFile(filePath, document.fileName)
             }
             println(jsonResponse)
             val newWords: MutableList<Word> = mutableListOf()
@@ -95,25 +102,26 @@ class BotUpdateProcessor(
                     File("words.txt").appendText(correctLine)
                 }
             }
-            trainer.repository.addWords(chatId, newWords)
+            trainer.repository.addWordsToUser(chatId, newWords)
 
         }
 
         when {
             Constants.CALLBACK_DATA_START_LEARNING_CLICKED == data -> checkNextQuestionAndSend(chatId)
             Constants.CALLBACK_DATA_RETURN_CLICKED == data -> {
-                botService.sendMainMenu(json, chatId)
+                requestSender.sendMainMenu(chatId)
                 if (wordSessionState[chatId] != null) wordSessionState[chatId] = null
             }
 
             Constants.CALLBACK_DATA_RESET_CLICKED == data -> {
                 trainer.resetStatistics(chatId)
-                botService.sendMessage(json, chatId, "Статистика успешно сброшена")
-                botService.sendMainMenu(json, chatId)
+                requestSender.sendMessage(chatId, "Статистика успешно сброшена")
+                requestSender.sendMainMenu(chatId)
             }
 
             Constants.CALLBACK_DATA_ADD_WORDS == data -> {
-                val response = botService.sendNewWordsRequest(json, chatId, "Введите оригинал ${Constants.EMOJI_ENG_FLAG}:")
+                val response =
+                    requestSender.sendNewWordsRequest(chatId, "Введите оригинал ${Constants.EMOJI_ENG_FLAG}:")
                 println("Запрос слов - $response")
                 chatAndMessagesIds[chatId] = json.decodeFromString<MessageResponse>(response).result?.messageId ?: 0L
                 wordSessionState[chatId] = WordSessionState()
@@ -121,8 +129,7 @@ class BotUpdateProcessor(
 
             Constants.CALLBACK_DATA_STATISTICS_CLICKED == data -> {
                 val statistics = trainer.getStatistics(chatId)
-                botService.sendMessage(
-                    json,
+                requestSender.sendMessage(
                     chatId,
                     STATISTIC_TO_SEND.format(
                         statistics.learnedWordsCount,
@@ -136,9 +143,9 @@ class BotUpdateProcessor(
                 val indexOfClicked = data.substringAfter(Constants.CALLBACK_DATA_ANSWER_PREFIX).toInt()
                 val isRightAnswer = trainer.checkAnswer(indexOfClicked, chatId)
 
-                if (isRightAnswer) botService.sendMessage(json, chatId, "${Constants.EMOJI_CHECKMARK} Верно!")
-                else botService.sendMessage(
-                    json,
+                if (isRightAnswer) requestSender.sendMessage(chatId, "${Constants.EMOJI_CHECKMARK} Верно!")
+                else requestSender.sendMessage(
+
                     chatId,
                     "${Constants.EMOJI_CROSSMARK} Не верно! ${trainer.question?.correctAnswer?.originalWord} - ${trainer.question?.correctAnswer?.translatedWord}"
                 )
@@ -151,8 +158,7 @@ class BotUpdateProcessor(
     private fun checkNextQuestionAndSend(chatId: Long) {
         val question = trainer.getNextQuestion(chatId)
         if (question == null) {
-            botService.sendMessage(
-                json,
+            requestSender.sendMessage(
                 chatId,
                 "${Constants.EMOJI_HUNDRED} Вы выучили все слова в базе или они отсутствуют"
             )
@@ -161,18 +167,18 @@ class BotUpdateProcessor(
             if (trainer.repository.checkFileIdExistence(originalWord)) {
                 trainer.repository.getFileId(originalWord)?.let { fileId ->
                     println(fileId)
-                    botService.sendPhotoByFileId(fileId = fileId, chatId = chatId, hasSpoiler = true, json = json)
+                    requestSender.sendPhotoByFileId(fileId = fileId, chatId = chatId, hasSpoiler = true)
                 }
             } else {
                 val file = File("build/libs/$originalWord.png")
                 if (file.exists()) {
-                    val sendPhotoResponse = botService.sendPhotoByFile(file, chatId, true)
+                    val sendPhotoResponse = requestSender.sendPhotoByFile(file, chatId, true)
                     val response: MessageResponse = json.decodeFromString(sendPhotoResponse)
                     val photoFileId = response.result?.photos?.find { it.width == 320 }?.fileId
                     if (photoFileId != null) trainer.repository.updateFileId(photoFileId, originalWord)
                 }
             }
-            botService.sendQuestion(json, chatId, question)
+            requestSender.sendQuestion(chatId, question)
         }
 
     }

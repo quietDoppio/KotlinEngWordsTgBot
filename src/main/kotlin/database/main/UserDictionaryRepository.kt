@@ -18,7 +18,7 @@ open class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) :
         }
     }
 
-    override fun addWords(chatId: Long, words: List<Word>) {
+    override fun addWordsToUser(chatId: Long, words: List<Word>) {
         withConnection { connection ->
             useTransaction(connection) {
                 connection.prepareStatement(Queries.INSERT_WORD).use { statement ->
@@ -33,7 +33,7 @@ open class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) :
         }
     }
 
-    override fun addUser(chatId: Long, username: String) {
+    override fun addNewUser(chatId: Long, username: String) {
         withConnection { connection ->
             connection.prepareStatement(Queries.INSERT_USER).use { statement ->
                 statement.setLong(1, chatId)
@@ -43,7 +43,7 @@ open class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) :
         }
     }
 
-    override fun addUserAnswers(chatId: Long, words: List<Word>) {
+    override fun addUserAnswersToUser(chatId: Long, words: List<Word>) {
         withConnection { connection ->
             connection.prepareStatement(Queries.INSERT_USER_ANSWERS).use { statement ->
                 val userId = getUserId(connection, chatId)
