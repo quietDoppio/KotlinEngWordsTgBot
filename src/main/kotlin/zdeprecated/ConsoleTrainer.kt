@@ -1,10 +1,15 @@
-package dictionary
+package zdeprecated
+
+import database.main.UserDictionaryRepository
+import bot.LearnWordsTrainer
+import bot.Question
+import bot.Word
 
 const val STATISTIC_TO_SEND = "Выучено %d из %d слов | %d%%"
 
 fun main() {
     val trainer = try {
-        LearnWordsTrainer()
+        LearnWordsTrainer(UserDictionaryRepository("", 0))
     } catch (e: Exception) {
         println("Невозможно загрузить словарь")
         return

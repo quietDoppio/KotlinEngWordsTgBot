@@ -20,3 +20,9 @@ time|время|0
 love|любовь|0
 subtle|тонкий|0
 concurrently|одновременно|0
+Apparently|видимо/очевидно
+Beneficial|выгодно/полезно
+Apparently|видимо/очевидно
+Beneficial|выгодно/полезно
+Apparently|видимо/очевидно
+Beneficial|выгодно/полезно
