@@ -1,30 +1,25 @@
-package bot
+package api
 
-import bot.serializableClasses.EditMessageBody
-import bot.serializableClasses.GetFileBody
-import bot.serializableClasses.InlineKeyboardButton
-import bot.serializableClasses.ReplyMarkup
-import bot.serializableClasses.SendMessageBody
-import bot.serializableClasses.SendPhotoBody
+import bot.Question
+import serializableClasses.EditMessageBody
+import serializableClasses.GetFileBody
+import serializableClasses.InlineKeyboardButton
+import serializableClasses.ReplyMarkup
+import serializableClasses.SendMessageBody
+import serializableClasses.SendPhotoBody
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.InputStream
 import java.math.BigInteger
 import java.net.URI
-import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.nio.file.Path
 import java.util.Random
 
-class TelegramApiService(private val botToken: String) {
+class TelegramApiService(botToken: String, json: Json = Json { ignoreUnknownKeys = true }) :
+    ApiService(botToken, json) {
 
     private val numsEmojiList = ('1'..'4').map { it -> "$it${Constants.EMOJI_DIGITS}" }
-    private val botUrl = Constants.API_TELEGRAM_URL + botToken
-    private val client: HttpClient = HttpClient.newBuilder().build()
-
 
     fun getUpdates(updateId: Long): String {
         val request: HttpRequest = makeGetRequest("$botUrl/getUpdates?offset=$updateId")
@@ -32,7 +27,7 @@ class TelegramApiService(private val botToken: String) {
         return response.body()
     }
 
-    fun sendMessage(json: Json, chatId: Long, message: String): String {
+    fun sendMessage(chatId: Long, message: String): String {
         val jsonBody = SendMessageBody(
             chatId = chatId,
             text = message,
@@ -40,14 +35,14 @@ class TelegramApiService(private val botToken: String) {
         val jsonBodyString = json.encodeToString(jsonBody)
 
         val request: HttpRequest = makePostRequest(
-            botUrl = "${botUrl}/sendMessage",
+            commandUrl = "${botUrl}/sendMessage",
             jsonBodyString = jsonBodyString,
         )
         val response = client.send(request, HttpResponse.BodyHandlers.ofString())
         return response.body()
     }
 
-    fun sendNewWordsRequest(json: Json, chatId: Long, message: String): String {
+    fun sendNewWordsRequest(chatId: Long, message: String): String {
         val jsonBody = SendMessageBody(
             chatId = chatId,
             text = message,
@@ -65,14 +60,14 @@ class TelegramApiService(private val botToken: String) {
         val jsonBodyString = json.encodeToString(jsonBody)
 
         val request: HttpRequest = makePostRequest(
-            botUrl = "${botUrl}/sendMessage",
+            commandUrl = "${botUrl}/sendMessage",
             jsonBodyString = jsonBodyString,
         )
         val response = client.send(request, HttpResponse.BodyHandlers.ofString())
         return response.body()
     }
 
-    fun sendMainMenu(json: Json, chatId: Long): String {
+    fun sendMainMenu(chatId: Long): String {
         val sendMessageUrl = "${botUrl}/sendMessage"
         val jsonBody = SendMessageBody(
             chatId = chatId,
@@ -109,7 +104,7 @@ class TelegramApiService(private val botToken: String) {
         return response.body()
     }
 
-    fun sendQuestion(json: Json, chatId: Long, question: Question): String {
+    fun sendQuestion(chatId: Long, question: Question): String {
         val sendMessageUrl = "${botUrl}/sendMessage"
         val questionString: String = buildString {
             append("${question.correctAnswer.originalWord}\n")
@@ -144,7 +139,7 @@ class TelegramApiService(private val botToken: String) {
         return response.body()
     }
 
-    fun editMessage(chatId: Long, messageId: Long, message: String, json: Json): String {
+    fun editMessage(chatId: Long, messageId: Long, message: String): String {
         val editMessageUrl = "$botUrl/editMessageText"
         val jsonBody = json.encodeToString(
             EditMessageBody(
@@ -180,7 +175,7 @@ class TelegramApiService(private val botToken: String) {
         body.copyTo(newFile.outputStream(), 16 * 1024)
     }
 
-    fun getFileRequest(fileId: String, json: Json): String {
+    fun getFileRequest(fileId: String): String {
         val urlGetFile = "$botUrl/getFile"
         val requestBody = GetFileBody(fileId = fileId)
         val requestBodyString = json.encodeToString(requestBody)
@@ -189,7 +184,7 @@ class TelegramApiService(private val botToken: String) {
         return response.body()
     }
 
-    fun sendPhotoByFileId(fileId: String, chatId: Long, hasSpoiler: Boolean = false, json: Json): String {
+    fun sendPhotoByFileId(fileId: String, chatId: Long, hasSpoiler: Boolean = false): String {
         val getFileBody = SendPhotoBody(chatId = chatId, fileId = fileId, hasSpoiler = hasSpoiler)
         val jsonBody = json.encodeToString(getFileBody)
 
@@ -212,47 +207,5 @@ class TelegramApiService(private val botToken: String) {
 
         val response: HttpResponse<String> = client.send(request, HttpResponse.BodyHandlers.ofString())
         return response.body()
-    }
-
-    fun HttpRequest.Builder.postMultipartFormData(boundary: String, data: Map<String, Any>): HttpRequest.Builder {
-        val byteArrays = ArrayList<ByteArray>()
-        val separator = "--$boundary\r\nContent-Disposition: form-data; name=".toByteArray(StandardCharsets.UTF_8)
-
-        for (entry in data.entries) {
-            byteArrays.add(separator)
-            when (entry.value) {
-                is Path -> {
-                    val path = entry.value as Path
-                    val mimeType = Files.probeContentType(path)
-                    byteArrays.add(
-                        "\"${entry.key}\"; filename=\"${path.fileName}\"\r\nContent-Type: $mimeType\r\n\r\n".toByteArray(
-                            StandardCharsets.UTF_8
-                        )
-                    )
-                    byteArrays.add(Files.readAllBytes(path))
-                    byteArrays.add("\r\n".toByteArray(StandardCharsets.UTF_8))
-                }
-
-                else -> {
-                    byteArrays.add("\"${entry.key}\"\r\n\r\n${entry.value}\r\n".toByteArray(StandardCharsets.UTF_8))
-                }
-            }
-
-        }
-        byteArrays.add("--$boundary--".toByteArray(StandardCharsets.UTF_8))
-        this.header("Content-type", "multipart/form-data;boundary=$boundary")
-            .POST(HttpRequest.BodyPublishers.ofByteArrays(byteArrays))
-
-        return this
-    }
-
-    private fun makeGetRequest(botUrl: String): HttpRequest =
-        HttpRequest.newBuilder().uri(URI.create(botUrl)).GET().build()
-
-    private fun makePostRequest(botUrl: String, jsonBodyString: String): HttpRequest {
-        return HttpRequest.newBuilder().uri(URI.create(botUrl))
-            .header("Content-type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(jsonBodyString))
-            .build()
     }
 }

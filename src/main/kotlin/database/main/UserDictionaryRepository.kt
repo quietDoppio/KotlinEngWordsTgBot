@@ -1,13 +1,13 @@
 package database.main
 
-import NEW.DriverConnectionProvider
+import database.DriverConnectionProviderImpl
 import database.BaseJdbcRepository
 import Queries
 import bot.Word
 import java.sql.Connection
 
 open class UserDictionaryRepository(jdbcUrl: String, private val limit: Int) :
-    BaseJdbcRepository(DriverConnectionProvider(jdbcUrl)),
+    BaseJdbcRepository(DriverConnectionProviderImpl(jdbcUrl)),
     UserRepository, WordRepository {
 
     override fun prepareTables(connection: Connection) {

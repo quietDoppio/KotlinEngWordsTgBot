@@ -1,18 +1,19 @@
 package bot
 
-import NEW.TelegramFilesHelper
-import NEW.TelegramRequestSender
-import NEW.TelegramUpdateSource
+import Utils.TelegramFilesHelperImpl
+import Utils.TelegramMessengerImpl
+import Utils.TelegramUpdateSourceImpl
+import api.TelegramApiService
 import database.main.UserDictionaryRepository
 
 fun main(args: Array<String>) {
     val botToken: String = args[0]
-    val telegramApiService = TelegramApiService(botToken)
+    val apiService = TelegramApiService(botToken)
     val trainer = LearnWordsTrainer(UserDictionaryRepository("${Constants.JDBC_URL}Database.db", 3))
     val botUpdateProcessor = BotUpdateProcessor(
-        TelegramUpdateSource(telegramApiService),
-        TelegramRequestSender(telegramApiService),
-        TelegramFilesHelper(telegramApiService),
+        TelegramUpdateSourceImpl(apiService),
+        TelegramMessengerImpl(apiService),
+        TelegramFilesHelperImpl(apiService),
         trainer
     )
     botUpdateProcessor.run()

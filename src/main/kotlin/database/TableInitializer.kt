@@ -1,4 +1,4 @@
-package NEW
+package database
 
 interface TableInitializer {
     fun initTables()

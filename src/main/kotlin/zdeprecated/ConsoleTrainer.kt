@@ -1,4 +1,4 @@
-package deprecated
+package zdeprecated
 
 import database.main.UserDictionaryRepository
 import bot.LearnWordsTrainer

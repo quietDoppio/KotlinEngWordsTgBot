@@ -1,4 +1,4 @@
-package bot.serializableClasses
+package serializableClasses
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

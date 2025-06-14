@@ -1,24 +1,24 @@
 package bot
 
-import NEW.BotRequestSender
-import NEW.FilesHelper
+import Utils.FilesHelper
+import Utils.TelegramMessenger
 
-import NEW.UpdateSource
-import NEW.UserCommandProcessor
-import bot.serializableClasses.GetFileResponse
-import bot.serializableClasses.MessageResponse
-import bot.serializableClasses.BotUpdate
-import deprecated.STATISTIC_TO_SEND
+import Utils.UpdateSource
+import serializableClasses.GetFileResponse
+import serializableClasses.MessageResponse
+import serializableClasses.BotUpdate
+import zdeprecated.STATISTIC_TO_SEND
 import kotlinx.serialization.json.Json
 import java.io.File
 
 class BotUpdateProcessor(
     private val updatesSource: UpdateSource,
-    private val requestSender: BotRequestSender,
+    private val requestSender: TelegramMessenger,
     private val filesHelper: FilesHelper,
     private val trainer: LearnWordsTrainer,
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) : UserCommandProcessor {
+
     val wordSessionState = mutableMapOf<Long, WordSessionState?>()
     val chatAndMessagesIds = mutableMapOf<Long, Long>()
     var lastUpdateId: Long = 0

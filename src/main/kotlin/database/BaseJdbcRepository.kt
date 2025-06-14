@@ -1,8 +1,7 @@
 package database
 
-import NEW.ConnectionProvider
-import NEW.DataCleaner
-import NEW.TableInitializer
+import database.utils.DataCleaner
+import database.utils.SafeExecutor
 import java.sql.Connection
 
 abstract class BaseJdbcRepository(protected val connectionProvider: ConnectionProvider) :

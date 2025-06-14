@@ -1,6 +1,6 @@
-package NEW
+package bot
 
-import bot.serializableClasses.BotUpdate
+import serializableClasses.BotUpdate
 
 interface UserCommandProcessor {
     fun run()
