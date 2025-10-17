@@ -1,43 +1,58 @@
 package utils
 
 import api.TelegramApiService
-import bot.Question
-import java.io.File
+import bot.IdsStorage
+import config.TelegramConfig.CallbackData.CallbacksEnum
+import kotlinx.serialization.json.Json
+import serializableClasses.Message
+import serializableClasses.TelegramResponse
 
 class TelegramMessenger(
-    private val api: TelegramApiService
+    private val service: TelegramApiService,
+    private val idsStorage: IdsStorage,
+    private val json: Json = Json { ignoreUnknownKeys = true }
 ) {
-    fun sendMessage(chatId: Long, text: String): String =
-        api.sendMessage(chatId, text)
+    fun sendSimpleTextAndSave(chatId: Long, text: String) {
+        val response = service.sendMessage(chatId, text)
+        val messageId = extractMessageIdOrZero(response)
+        idsStorage.addId(chatId = chatId, messageId)
+    }
 
-    fun sendAddPictureMenu(chatId: Long, text: String): String =
-        api.sendAddPictureMenu(chatId, text)
+    fun sendAndSave(chatId: Long, messageBlock: () -> String) {
+        val response = messageBlock()
+        val messageId = extractMessageIdOrZero(response)
+        idsStorage.addId(chatId = chatId, messageId)
+    }
 
-    fun deleteMessages(chatId: Long, messageIds: List<Long>): String =
-        api.deleteMessages(chatId, messageIds)
+    fun deletePrevious(chatId: Long, clearIds: Boolean = true, offset: Int = 0) {
+        val idsToDelete = idsStorage.getIds(chatId).safeDropLast(offset)
+        if (idsToDelete.isEmpty()) return
 
-    fun editWordRequest(chatId: Long, messageId: Long, newText: String, isAddWordsRequest: Boolean = true): String =
-        api.editWordRequest(chatId, messageId, newText, isAddWordsRequest)
+        service.deleteMessages(chatId, idsToDelete)
+        if (clearIds) idsStorage.clearIds(chatId)
+    }
 
-    fun sendMainMenu(chatId: Long): String =
-        api.sendMainMenu(chatId)
+    fun runWithMessagesCleanup(
+        chatId: Long,
+        data: String,
+        nonCleanupCallbacks: Set<CallbacksEnum> = emptySet(),
+        resultHandler: (CallbacksEnum) -> Unit
+    ) {
+        val callback: CallbacksEnum? = CallbacksEnum.fromKey(data)
+        if (callback == null) {
+            println("Incorrect callback"); return
+        }
 
-    fun sendShowWordsMenu(chatId: Long, text: String, isWordsEmpty: Boolean = false): String =
-        api.sendShowWordsMenu(chatId, text, isWordsEmpty)
+        if (callback !in nonCleanupCallbacks) deletePrevious(chatId)
 
-    fun sendWordMenu(chatId: Long, text: String) =
-        api.sendWordMenu(chatId, text)
+        resultHandler(callback)
+    }
 
-    fun sendWordsRequest(chatId: Long, text: String, isAddWordsRequest: Boolean = true): String =
-        api.sendWordsRequest(chatId, text, isAddWordsRequest)
+    private fun extractMessageIdOrZero(response: String): Long =
+        runCatching {
+            json.decodeFromString<TelegramResponse<Message>>(response).result?.messageId ?: 0L
+        }.getOrNull() ?: 0L
 
-    fun sendQuestion(chatId: Long, question: Question): String =
-        api.sendQuestion(chatId, question)
-
-    fun sendPhotoByFileId(fileId: String, chatId: Long, hasSpoiler: Boolean): String =
-        api.sendPhotoByFileId(fileId, chatId, hasSpoiler)
-
-    fun sendPhotoByFile(file: File, chatId: Long, hasSpoiler: Boolean): String =
-        api.sendPhotoByFile(file, chatId, hasSpoiler)
-
+    private fun List<Long>.safeDropLast(offset: Int): List<Long> =
+        if (offset in 1 until size) dropLast(offset) else if (offset <= 0) this else emptyList()
 }

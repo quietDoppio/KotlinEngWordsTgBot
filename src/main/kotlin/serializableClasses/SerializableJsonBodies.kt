@@ -14,16 +14,6 @@ data class SendMessageBody(
 )
 
 @Serializable
-data class CopyMessageBody(
-    @SerialName("chat_id")
-    val chatId: Long,
-    @SerialName("from_chat_id")
-    val fromChatId: Long,
-    @SerialName("message_id")
-    val messageId: Long,
-)
-
-@Serializable
 data class DeleteMessageBody(
     @SerialName("chat_id")
     val chatId: Long,

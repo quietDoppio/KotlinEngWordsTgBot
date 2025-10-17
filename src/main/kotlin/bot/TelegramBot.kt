@@ -1,32 +1,33 @@
 package bot
 
 import utils.FilesHelper
-import utils.TelegramMessenger
-import utils.UpdateSource
 import api.TelegramApiService
-import bot.utils.AddWordsSessionHandler
-import config.BotConfig
+import config.BotConfig.Database.FULL_DATABASE_PATH
 import database.ConnectionProvider
-import database.TablesHandler
-import database.main.UserRepository
-import database.main.WordRepository
+import database.DataBaseRepository
+import kotlinx.coroutines.runBlocking
+import utils.TelegramMessenger
 
-fun main(args: Array<String>) {
-    val botToken: String = args[0]
+fun main(args: Array<String>): Unit = runBlocking {
+    val botToken = System.getenv("BOT_TOKEN") ?: args.getOrNull(0) ?: error("Нет бот токена")
     val apiService = TelegramApiService(botToken)
-    val connectionProvider = ConnectionProvider(BotConfig.Database.FULL_DATABASE_PATH)
-    val trainer = LearnWordsTrainer(
-        UserRepository(connectionProvider, BotConfig.Learning.MIN_CORRECT_ANSWERS),
-        WordRepository(connectionProvider),
-        TablesHandler(connectionProvider)
-    )
 
-    val botUpdateProcessor = BotUpdateProcessor(
-        UpdateSource(apiService),
-        TelegramMessenger(apiService),
-        FilesHelper(apiService,trainer),
-        trainer,
-    )
+    val repository = DataBaseRepository(ConnectionProvider(FULL_DATABASE_PATH)).also {
+        it.initTables()
+    }
 
-    botUpdateProcessor.run()
+    val filesHelper = FilesHelper(apiService, repository)
+    val trainer = LearnWordsTrainer(repository)
+
+    val idsStorage = IdsStorage()
+    val dataStorage = UserBotDataStorage(idsStorage, SessionStorage(), WordsStorage())
+    val messenger = TelegramMessenger(apiService, idsStorage)
+
+    val botController =
+        BotController(repository, trainer, apiService, dataStorage, filesHelper, messenger)
+    val sessionHandler =
+        SessionHandler(apiService, repository, dataStorage, messenger, botController::showWordEditorMenu)
+
+    BotUpdateProcessor(dataStorage, sessionHandler, botController, apiService::getUpdates, repository::addNewUser)
+        .run()
 }

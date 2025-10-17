@@ -29,7 +29,7 @@ object Queries {
         FOREIGN KEY (word_id) REFERENCES words (id) ON DELETE CASCADE
         )
     """
-    const val UPDATE_WORD = "UPDATE words SET text = ?, translate = ? WHERE user_id = ? AND text = ?"
+    const val UPDATE_WORD = "UPDATE OR IGNORE words SET text = ?, translate = ? WHERE user_id = ? AND text = ?"
     const val INSERT_USER_ANSWERS =
         "INSERT OR IGNORE INTO user_answers (user_id, word_id) VALUES (?, ?)"
 
@@ -49,7 +49,7 @@ object Queries {
         FROM words w
         WHERE user_id = ?
     """
-    const val GET_FILE_ID = "SELECT file_id AS fileId FROM words WHERE user_id = ? AND text = ?"
+    const val GET_PHOTO_FILE_ID = "SELECT file_id AS fileId FROM words WHERE user_id = ? AND text = ?"
     const val GET_PERSONAL_WORDS_COUNT = "SELECT COUNT(*) AS count FROM user_answers WHERE user_id = ?"
     const val GET_NUM_OF_UNLEARNED_WORDS =
         "SELECT COUNT(*) AS count FROM user_answers WHERE user_id = ? AND correct_answer_count < ?"
@@ -78,13 +78,6 @@ object Queries {
             WHERE w.user_id = ? AND ua.correct_answer_count < ?
         """
 
-    const val GET_UNLEARNED_WORDS_DEPR = """
-            SELECT w.text AS text, w.translate AS translate
-            FROM user_answers ua
-            JOIN words w ON ua.word_id = w.id
-            JOIN users u ON ua.user_id = u.id
-            WHERE u.chat_id = ? AND ua.correct_answer_count < ?
-        """
     const val SET_CORRECT_ANSWERS_COUNT =
         "UPDATE user_answers SET correct_answer_count = ? WHERE user_id = ? AND word_id = ?"
     const val RESET_USER_PROGRESS =
@@ -100,11 +93,7 @@ object Queries {
         WHERE user_id = ?
         AND text = ?
     """
-
-    const val TEST_INSERT_USER_ANSWERS = """
-        INSERT OR REPLACE INTO user_answers (user_id, word_id, correct_answer_count)
-        VALUES ( (SELECT id FROM users WHERE chat_id = ?), (SELECT id FROM words WHERE text = ?), (?) )
-        """
+    const val CHECK_WORD_EXISTENCE = "SELECT 1 FROM words WHERE text = ? AND user_id = ?"
     const val GET_USER_ID = "SELECT id FROM users WHERE chat_id = ?"
-    const val GET_WORD_ID = "SELECT id FROM words WHERE text = ?"
+    const val GET_WORD_ID = "SELECT id FROM words WHERE text = ? AND user_id = ?"
 } 

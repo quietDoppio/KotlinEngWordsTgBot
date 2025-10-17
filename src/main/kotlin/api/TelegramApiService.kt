@@ -2,31 +2,24 @@ package api
 
 import bot.Question
 import config.BotConfig
-import config.BotConfig.Messages.GO_BACK_MESSAGE
-import config.BotConfig.Telegram.Callbacks
-import config.BotConfig.Telegram.Callbacks.ADD_WORDS_SESSION_CLICKED
-import config.BotConfig.Telegram.Callbacks.ANSWER_PREFIX
-import config.BotConfig.Telegram.Callbacks.DELETE_DICTIONARY_CLICKED
-import config.BotConfig.Telegram.Callbacks.DELETE_WORD_CLICKED
-import config.BotConfig.Telegram.Callbacks.EDIT_WORD_SESSION_CLICKED
-import config.BotConfig.Telegram.Callbacks.GO_BACK_SELECT_WORD_SESSION_CLICKED
-import config.BotConfig.Telegram.Callbacks.GO_BACK_WORD_MENU_CLICKED
-import config.BotConfig.Telegram.Callbacks.RESET_CLICKED
-import config.BotConfig.Telegram.Callbacks.RETURN_MAIN_MENU_CLICKED
-import config.BotConfig.Telegram.Callbacks.SELECT_WORD_SESSION_CLICKED
-import config.BotConfig.Telegram.Callbacks.SET_PICTURE_SESSION_CLICKED
-import config.BotConfig.Telegram.Callbacks.START_LEARNING_CLICKED
-import config.BotConfig.Telegram.Callbacks.STATISTICS_CLICKED
-import config.BotConfig.Telegram.Emojis
+import config.TelegramConfig.Api.API_BASE_URL
+import config.TelegramConfig.Api.API_DELETE_MESSAGES
+import config.TelegramConfig.Api.API_EDIT_MESSAGE_TEXT
+import config.TelegramConfig.Api.API_GET_FILE
+import config.TelegramConfig.Api.API_GET_UPDATES
+import config.TelegramConfig.Api.API_SEND_MESSAGE
+import config.TelegramConfig.Api.API_SEND_PHOTO
+import config.TelegramConfig.CallbackData.CallbacksEnum
+import config.TelegramConfig.Emojis.answerOptionEmojis
 import serializableClasses.EditMessageBody
 import serializableClasses.GetFileBody
-import serializableClasses.InlineKeyboardButton
 import serializableClasses.ReplyMarkup
 import serializableClasses.SendMessageBody
 import serializableClasses.SendPhotoBody
 import kotlinx.serialization.json.Json
-import serializableClasses.CopyMessageBody
+import serializableClasses.BotUpdate
 import serializableClasses.DeleteMessageBody
+import serializableClasses.TelegramResponse
 import java.io.File
 import java.io.InputStream
 import java.math.BigInteger
@@ -38,213 +31,192 @@ import java.util.Random
 class TelegramApiService(botToken: String, json: Json = Json { ignoreUnknownKeys = true }) :
     ApiService(botToken, json) {
 
-    private val answerOptionEmojis = ('1'..'4').map { it -> "$it${Emojis.DIGITS}" }
-    private val menuButton = InlineKeyboardButton(
-        text = "Меню",
-        callbackData = RETURN_MAIN_MENU_CLICKED,
-    )
+    private val returnMenuButton = makeButtons(CallbacksEnum.RETURN_MAIN_MENU_CLICKED)
 
-    fun getUpdates(updateId: Long): String {
-        val request: HttpRequest = makeGetRequest("$botUrl/getUpdates?offset=$updateId")
-        val response: HttpResponse<String> = client.send(request, HttpResponse.BodyHandlers.ofString())
-        return response.body()
+    fun getUpdates(updateId: Long): List<BotUpdate> {
+        val url = "$botUrl$API_GET_UPDATES?offset=$updateId"
+        val response = sendGetForString(url)
+        val freshUpdates = json.decodeFromString<TelegramResponse<List<BotUpdate>>>(response).result
+
+        val sortedUpdates: List<BotUpdate>? = freshUpdates?.let { updates ->
+            updates.sortedBy { it.updateId }
+        }
+
+        return sortedUpdates ?: emptyList()
     }
 
     fun sendMessage(chatId: Long, message: String): String {
-        val url = "${botUrl}/sendMessage"
-        val jsonBody = SendMessageBody(chatId = chatId, text = message)
+        val url = "$botUrl$API_SEND_MESSAGE"
+        val jsonBody = SendMessageBody(chatId, message)
         val jsonBodyString = json.encodeToString(jsonBody)
-        return sendPostRequest(url, jsonBodyString)
+        return sendPostForString(url, jsonBodyString)
     }
 
-    fun copyMessage(chatId: Long, messageId: Long): String {
-        val url = "${botUrl}/copyMessage"
-        val jsonBody = CopyMessageBody(
-            chatId = chatId,
-            fromChatId = chatId,
-            messageId = messageId
-        )
-        val jsonBodyString = json.encodeToString(jsonBody)
-        val copyMessageResponse = sendPostRequest(url, jsonBodyString)
-        println(copyMessageResponse)
-        return copyMessageResponse
-    }
-
-    fun sendWordMenu(chatId: Long, message: String): String {
-        val url = "${botUrl}/sendMessage"
+    fun sendWordEditorMenu(chatId: Long, message: String): String {
+        val url = "$botUrl$API_SEND_MESSAGE"
         val jsonBody = SendMessageBody(
             chatId = chatId,
             text = message,
             replyMarkup = ReplyMarkup(
                 listOf(
-                    listOf(
-                        InlineKeyboardButton("Редактировать", EDIT_WORD_SESSION_CLICKED),
-                        InlineKeyboardButton("Установить картинку-подсказку", SET_PICTURE_SESSION_CLICKED),
-                    ),
-                    listOf(
-                        InlineKeyboardButton("Удалить", DELETE_WORD_CLICKED),
-                        InlineKeyboardButton(GO_BACK_MESSAGE, GO_BACK_SELECT_WORD_SESSION_CLICKED)
-                    ),
-                    listOf(menuButton)
+                    makeButtons(CallbacksEnum.EDIT_WORD_SESSION_CLICKED, CallbacksEnum.SET_PICTURE_SESSION_CLICKED),
+                    makeButtons(CallbacksEnum.DELETE_WORD_CLICKED, CallbacksEnum.DELETE_HINT_CLICKED),
+                    makeButtons(CallbacksEnum.GO_BACK_TO_SELECT_WORD_SESSION_CLICKED) + returnMenuButton
                 )
             )
         )
         val jsonBodyString = json.encodeToString(jsonBody)
-        return sendPostRequest(url, jsonBodyString)
+        return sendPostForString(url, jsonBodyString)
     }
 
     fun sendAddPictureMenu(chatId: Long, message: String): String {
-        val url = "${botUrl}/sendMessage"
+        val url = "$botUrl$API_SEND_MESSAGE"
         val jsonBody = SendMessageBody(
             chatId = chatId,
             text = message,
             replyMarkup = ReplyMarkup(
                 listOf(
-                    listOf(
-                        InlineKeyboardButton(GO_BACK_MESSAGE, GO_BACK_WORD_MENU_CLICKED),
-                        menuButton
-                    )
+                    makeButtons(CallbacksEnum.GO_BACK_TO_WORD_MENU_CLICKED) + returnMenuButton
                 )
             )
         )
         val jsonBodyString = json.encodeToString(jsonBody)
-        return sendPostRequest(url, jsonBodyString)
+        return sendPostForString(url, jsonBodyString)
     }
 
-    fun sendShowWordsMenu(chatId: Long, message: String, isWordsEmpty: Boolean): String {
-        val menuDeleteButton = if (isWordsEmpty) {
-            listOf(menuButton)
-        } else {
-            listOf(InlineKeyboardButton("Удалить всё", DELETE_DICTIONARY_CLICKED), menuButton)
-        }
+    fun sendShowWordsMenu(chatId: Long, message: String, isWordsEmpty: Boolean = false): String {
+        val menuDeleteButton =
+            if (isWordsEmpty)
+                returnMenuButton
+            else
+                makeButtons(CallbacksEnum.DELETE_DICTIONARY_CLICKED) + returnMenuButton
 
-        val url = "${botUrl}/sendMessage"
+        val url = "$botUrl$API_SEND_MESSAGE"
         val jsonBody = SendMessageBody(
             chatId = chatId,
             text = message,
             replyMarkup = ReplyMarkup(
                 listOf(
-                    listOf(InlineKeyboardButton("Добавить слова", ADD_WORDS_SESSION_CLICKED)), menuDeleteButton
+                    makeButtons(CallbacksEnum.ADD_WORDS_SESSION_CLICKED),
+                    menuDeleteButton
                 )
             )
         )
         val jsonBodyString = json.encodeToString(jsonBody)
-        return sendPostRequest(url, jsonBodyString)
+        return sendPostForString(url, jsonBodyString)
     }
 
-    fun sendWordsRequest(chatId: Long, message: String, isAddWordsRequest: Boolean): String {
-        val goBackButton = InlineKeyboardButton(
-            GO_BACK_MESSAGE,
-            if(isAddWordsRequest) GO_BACK_SELECT_WORD_SESSION_CLICKED else GO_BACK_WORD_MENU_CLICKED
-        )
-        val url = "${botUrl}/sendMessage"
+    fun sendWordsRequest(chatId: Long, message: String, isAddWordsRequest: Boolean = true): String {
+        val goBackButton =
+            if (isAddWordsRequest)
+                makeButtons(CallbacksEnum.GO_BACK_TO_SELECT_WORD_SESSION_CLICKED)
+            else
+                makeButtons(CallbacksEnum.GO_BACK_TO_WORD_MENU_CLICKED)
+
+
+        val url = "$botUrl$API_SEND_MESSAGE"
         val jsonBody = SendMessageBody(
             chatId = chatId,
             text = message,
-            replyMarkup = ReplyMarkup(listOf(listOf(goBackButton, menuButton))))
+            replyMarkup = ReplyMarkup(listOf(goBackButton + returnMenuButton))
+        )
+
         val jsonBodyString = json.encodeToString(jsonBody)
-        return sendPostRequest(url, jsonBodyString)
+        return sendPostForString(url, jsonBodyString)
     }
 
     fun sendMainMenu(chatId: Long): String {
-        val sendMessageUrl = "${botUrl}/sendMessage"
+        val sendMessageUrl = "$botUrl$API_SEND_MESSAGE"
         val jsonBody = SendMessageBody(
             chatId = chatId,
             text = "Основное меню",
             replyMarkup = ReplyMarkup(
                 listOf(
-                    listOf(
-                        InlineKeyboardButton("Изучение слов", START_LEARNING_CLICKED),
-                        InlineKeyboardButton("Показать словарь", SELECT_WORD_SESSION_CLICKED),
-                    ),
-                    listOf(
-                        InlineKeyboardButton("Статистика", STATISTICS_CLICKED),
-                        InlineKeyboardButton("Сбросить статистику", RESET_CLICKED),
-                    ),
+                    makeButtons(CallbacksEnum.START_LEARNING_CLICKED, CallbacksEnum.SELECT_WORD_SESSION_CLICKED),
+                    makeButtons(CallbacksEnum.STATISTICS_CLICKED, CallbacksEnum.RESET_CLICKED),
                 )
             )
         )
 
         val jsonBodyString = json.encodeToString(jsonBody)
-        return sendPostRequest(sendMessageUrl, jsonBodyString)
+        return sendPostForString(sendMessageUrl, jsonBodyString)
     }
 
     fun sendQuestion(chatId: Long, question: Question): String {
-        val sendMessageUrl = "${botUrl}/sendMessage"
+        val sendMessageUrl = "$botUrl$API_SEND_MESSAGE"
+
+        val words = question.variants
+
         val questionString: String = buildString {
             append("${question.correctAnswer.originalWord}\n")
-            append(question.variants.mapIndexed { index, word ->
+            append(words.mapIndexed { index, word ->
                 "\n${answerOptionEmojis[index]} ${word.translatedWord}"
             }.joinToString("\n"))
         }
+
         val jsonBody = SendMessageBody(
             chatId = chatId,
             text = questionString,
-            replyMarkup = ReplyMarkup(
-                listOf(
-                    question.variants.mapIndexed { index, word ->
-                        InlineKeyboardButton(answerOptionEmojis[index], "${ANSWER_PREFIX}$index")
-                    },
-                    listOf(InlineKeyboardButton("Вернуться в меню", RETURN_MAIN_MENU_CLICKED))
-                )
-            ),
+            replyMarkup = ReplyMarkup(listOf(makeQuestionButtons(words), returnMenuButton)),
         )
         val jsonBodyString = json.encodeToString(jsonBody)
-        return sendPostRequest(sendMessageUrl, jsonBodyString)
+        return sendPostForString(sendMessageUrl, jsonBodyString)
     }
 
     fun deleteMessages(chatId: Long, messageIds: List<Long>): String {
-        val deleteMessageUrl = "$botUrl/deleteMessages"
-        val jsonBody = json.encodeToString(DeleteMessageBody(chatId = chatId, messageIds = messageIds))
+        val deleteMessageUrl = "$botUrl$API_DELETE_MESSAGES"
+        val jsonBody = json.encodeToString(DeleteMessageBody(chatId, messageIds))
 
-        return sendPostRequest(deleteMessageUrl, jsonBody)
+        return sendPostForString(deleteMessageUrl, jsonBody)
     }
 
-    fun editWordRequest(chatId: Long, messageId: Long, message: String, isAddWordsRequest: Boolean): String {
-        val goBackButton = InlineKeyboardButton(
-            GO_BACK_MESSAGE,
-            if(isAddWordsRequest) GO_BACK_SELECT_WORD_SESSION_CLICKED else GO_BACK_WORD_MENU_CLICKED
-        )
-        val editMessageUrl = "$botUrl/editMessageText"
+    fun editWordRequest(chatId: Long, messageId: Long, message: String, isAddWordsRequest: Boolean = true): String {
+        val editMessageUrl = "$botUrl$API_EDIT_MESSAGE_TEXT"
+
+        val goBackButton =
+            if (isAddWordsRequest)
+                makeButtons(CallbacksEnum.GO_BACK_TO_SELECT_WORD_SESSION_CLICKED)
+            else
+                makeButtons(CallbacksEnum.GO_BACK_TO_WORD_MENU_CLICKED)
+
         val jsonBody = json.encodeToString(
             EditMessageBody(
                 chatId = chatId,
                 messageId = messageId,
                 text = message,
-                replyMarkup = ReplyMarkup(listOf(listOf(goBackButton, menuButton)))
+                replyMarkup = ReplyMarkup(listOf(goBackButton + returnMenuButton))
             )
         )
-        return sendPostRequest(editMessageUrl, jsonBody)
+
+        return sendPostForString(editMessageUrl, jsonBody)
     }
 
     fun downloadFile(apiFilePath: String, fileName: String) {
-        val urlFilePath = "${BotConfig.Telegram.API_BASE_URL.dropLast(4)}/file/bot$botToken/$apiFilePath"
-
-        val request: HttpRequest = makeGetRequest(urlFilePath)
-        val response: HttpResponse<InputStream> = client.send(request, HttpResponse.BodyHandlers.ofInputStream())
-
         val newFile = File(fileName)
-        response.body().use { body ->
+
+        val urlFilePath = "${API_BASE_URL.dropLast(4)}/file/bot$botToken/$apiFilePath"
+        val response: InputStream = sendGetForInputStream(urlFilePath)
+
+        response.use { body ->
             newFile.outputStream().use { fileStream ->
                 body.copyTo(fileStream, BotConfig.Files.COPY_BUFFER_SIZE)
             }
         }
-
     }
 
     fun getFileRequest(fileId: String): String {
-        val urlGetFile = "$botUrl/getFile"
-        val requestBody = GetFileBody(fileId = fileId)
+        val urlGetFile = "$botUrl$API_GET_FILE"
+        val requestBody = GetFileBody(fileId)
         val requestBodyString = json.encodeToString(requestBody)
 
-        return sendPostRequest(urlGetFile, requestBodyString)
+        return sendPostForString(urlGetFile, requestBodyString)
     }
 
     fun sendPhotoByFileId(fileId: String, chatId: Long, hasSpoiler: Boolean = false): String {
-        val getFileBody = SendPhotoBody(chatId = chatId, fileId = fileId, hasSpoiler = hasSpoiler)
+        val getFileBody = SendPhotoBody(chatId, fileId, hasSpoiler)
         val jsonBody = json.encodeToString(getFileBody)
 
-        return sendPostRequest("$botUrl/sendPhoto", jsonBody)
+        return sendPostForString("$botUrl$API_SEND_PHOTO", jsonBody)
     }
 
     fun sendPhotoByFile(file: File, chatId: Long, hasSpoiler: Boolean = false): String {
@@ -255,17 +227,11 @@ class TelegramApiService(botToken: String, json: Json = Json { ignoreUnknownKeys
         val boundary = BigInteger(35, Random()).toString()
 
         val request: HttpRequest = HttpRequest.newBuilder()
-            .uri(URI.create("$botUrl/sendPhoto"))
+            .uri(URI.create("$botUrl$API_SEND_PHOTO"))
             .postMultipartFormData(boundary, data)
             .build()
 
         val response: HttpResponse<String> = client.send(request, HttpResponse.BodyHandlers.ofString())
-        return response.body()
-    }
-
-    fun sendPostRequest(url: String, jsonBody: String): String {
-        val request = makePostRequest(url, jsonBody)
-        val response = client.send(request, HttpResponse.BodyHandlers.ofString())
         return response.body()
     }
 }
