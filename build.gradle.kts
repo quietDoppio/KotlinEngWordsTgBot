@@ -1,3 +1,5 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 plugins {
     kotlin("jvm") version "2.1.10"
     kotlin("plugin.serialization") version "2.1.10"
@@ -15,6 +17,7 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
     implementation("org.xerial:sqlite-jdbc:3.43.0.0")
 }
