@@ -3,13 +3,12 @@ package bot
 import serializableClasses.BotUpdate
 import serializableClasses.Document
 import config.BotConfig.App.UNKNOWN_USER
-import config.BotConfig.Learning.POLLING_INTERVAL_MS
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import serializableClasses.PhotoSize
 
 class BotUpdateProcessor(
@@ -19,29 +18,42 @@ class BotUpdateProcessor(
     private val getUpdates: (Long) -> List<BotUpdate>,
     private val addNewUserIfNotExists: (Long, String) -> Unit,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val handler = CoroutineExceptionHandler { _, exception ->
         exception.printStackTrace()
         println("Caught $exception\n")
     }
-    private var lastUpdateId: Long = 0
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + handler)
+
+    private var updates: List<BotUpdate> = emptyList()
+
+    private var lastUpdateId: Long = 0L
 
     suspend fun run() {
         while (true) {
-           try {
-                val updates = getUpdates(lastUpdateId)
+                updates = withContext(Dispatchers.IO + handler) { getUpdates(lastUpdateId) }
                 if (updates.isNotEmpty()) {
                     lastUpdateId = updates.last().updateId + 1
-                    updates.forEach {
-                        scope.launch(handler) { handleUpdate(it) }
-                    }
+                    distributeAndRun(updates)
                 }
-                delay(POLLING_INTERVAL_MS)
-           }catch (e: Exception){
-               e.printStackTrace()
-               println("Caught $e\nRestarting")
-               delay(POLLING_INTERVAL_MS)
-           }
+        }
+    }
+
+    private fun distributeAndRun(updates: List<BotUpdate>) {
+        val grouped = updates.groupBy { it.fetchChatId() }
+
+        for ((chatId, updates) in grouped) {
+            chatId ?: continue
+            println("id: $chatId - updates: ${updates.size}")
+            scope.launch {
+                runHandling(updates)
+            }
+        }
+    }
+
+    fun runHandling(updates: List<BotUpdate>) {
+        for (update in updates) {
+            handleUpdate(update)
         }
     }
 
@@ -57,6 +69,9 @@ class BotUpdateProcessor(
         botController.handleAddWordsFromFile(chatId, data.document)
         botController.sendMessageByKeyWord(data.message, chatId)
     }
+
+    private fun BotUpdate.fetchChatId(): Long? =
+        message?.chat?.chatId ?: callbackQuery?.message?.chat?.chatId
 
     private fun extractUpdateData(update: BotUpdate): UpdateData? {
         val chatId = update.message?.chat?.chatId ?: update.callbackQuery?.message?.chat?.chatId ?: return null
