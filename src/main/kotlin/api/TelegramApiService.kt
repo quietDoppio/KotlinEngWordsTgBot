@@ -34,7 +34,7 @@ class TelegramApiService(botToken: String, json: Json = Json { ignoreUnknownKeys
     private val returnMenuButton = makeButtons(CallbacksEnum.RETURN_MAIN_MENU_CLICKED)
 
     fun getUpdates(updateId: Long): List<BotUpdate> {
-        val url = "$botUrl$API_GET_UPDATES?offset=$updateId"
+        val url = "$botUrl$API_GET_UPDATES?timeout=30&offset=$updateId"
         val response = sendGetForString(url)
         val freshUpdates = json.decodeFromString<TelegramResponse<List<BotUpdate>>>(response).result
 
@@ -42,6 +42,7 @@ class TelegramApiService(botToken: String, json: Json = Json { ignoreUnknownKeys
             updates.sortedBy { it.updateId }
         }
 
+        println("getUpdates")
         return sortedUpdates ?: emptyList()
     }
 
